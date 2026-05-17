@@ -73,6 +73,117 @@
   .m-card .thumb-brand .b-type { background: #fafafa; display: flex; align-items: center; justify-content: center; font-family: 'Instrument Serif', serif; font-style: italic; font-size: 18px; }
   .m-card .thumb-brand .b-pal { background: linear-gradient(90deg, #667EEA 0 20%, #764BA2 20% 40%, #F093FB 40% 60%, #F5576C 60% 80%, #4FACFE 80%); }
   .m-card .thumb-brand .b-words { background: #0a0a0a; color: #fff; display: flex; align-items: center; justify-content: center; font-family: Inter, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+
+  /* ---------- Newsletter signup ---------- */
+  .newsletter {
+    max-width: 480px;
+    margin: 56px auto 0;
+    padding: 28px 26px 22px;
+    background:
+      radial-gradient(120% 80% at 100% 0%, rgba(180,140,255,0.10), transparent 60%),
+      radial-gradient(120% 80% at 0% 100%, rgba(255,122,89,0.08), transparent 60%),
+      #fff;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 1px 0 rgba(0,0,0,.02), 0 10px 30px -12px rgba(0,0,0,.08);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .newsletter::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: 24px; right: 24px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #b48cff 30%, #ff7a59 70%, transparent);
+    opacity: .6;
+  }
+  .nl-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .nl-spark {
+    display: inline-block;
+    background: linear-gradient(120deg, #ff7a59, #b48cff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-size: 12px;
+  }
+  .nl-label {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 26px;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin-bottom: 16px;
+  }
+  .nl-row {
+    display: flex;
+    gap: 6px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 5px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .nl-row:focus-within {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 4px rgba(10,10,10,.06);
+  }
+  #nl-email {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--ink);
+    outline: none;
+    min-width: 0;
+  }
+  #nl-email::placeholder { color: var(--ink-3); }
+  #nl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition: transform .12s ease, background .15s ease;
+  }
+  #nl-btn:hover { background: #222; transform: translateY(-1px); }
+  #nl-btn:active { transform: translateY(0); }
+  #nl-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+  #nl-btn svg { transition: transform .15s ease; }
+  #nl-btn:hover svg { transform: translateX(2px); }
+  .nl-meta {
+    margin-top: 12px;
+    font-size: 11.5px;
+    color: var(--ink-3);
+    min-height: 16px;
+  }
+  .nl-msg.success { color: #16a34a; font-weight: 500; }
+  .nl-msg.error { color: #dc2626; font-weight: 500; }
+  @media (max-width: 480px) {
+    .nl-row { flex-direction: column; }
+    #nl-btn { justify-content: center; }
+  }
 </style>
 <script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
 </head>
@@ -101,6 +212,21 @@
       <a href="/mesh/" class="btn primary">Try Mesh Gradient →</a>
       <a href="#tools" class="btn">Browse all tools</a>
     </div>
+
+    <form class="newsletter" id="newsletter" novalidate>
+      <div class="nl-eyebrow"><span class="nl-spark">✦</span> Tiny launches, one email</div>
+      <div class="nl-label">Get notified when a new tool ships</div>
+      <div class="nl-row">
+        <input type="email" name="email" id="nl-email" placeholder="you@example.com" required autocomplete="email" />
+        <button type="submit" id="nl-btn">
+          <span class="nl-btn-text">Notify me</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+      <div class="nl-meta">
+        <span class="nl-msg" id="nl-msg">No spam. Unsubscribe anytime. Roughly one email a month.</span>
+      </div>
+    </form>
   </section>
 
   <div id="tools">
@@ -153,6 +279,58 @@ CATS.forEach(cat => {
     grid.appendChild(a);
   });
 });
+
+// ---------- Newsletter signup ----------
+(function() {
+  const form = document.getElementById('newsletter');
+  const input = document.getElementById('nl-email');
+  const btn = document.getElementById('nl-btn');
+  const btnText = btn.querySelector('.nl-btn-text');
+  const msg = document.getElementById('nl-msg');
+  const defaultMsg = msg.textContent;
+
+  function setMsg(text, kind) {
+    msg.textContent = text;
+    msg.className = 'nl-msg' + (kind ? ' ' + kind : '');
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = input.value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setMsg('Enter a valid email address', 'error');
+      input.focus();
+      return;
+    }
+    btn.disabled = true;
+    btnText.textContent = 'Sending…';
+    try {
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setMsg('✓ You\'re on the list. See you soon.', 'success');
+        input.value = '';
+        btnText.textContent = 'Subscribed';
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setMsg(data.error || 'Something went wrong. Try again?', 'error');
+        btnText.textContent = 'Notify me';
+        btn.disabled = false;
+      }
+    } catch {
+      setMsg('Network error. Try again?', 'error');
+      btnText.textContent = 'Notify me';
+      btn.disabled = false;
+    }
+  });
+
+  input.addEventListener('input', () => {
+    if (msg.classList.contains('error')) setMsg(defaultMsg, '');
+  });
+})();
 </script>
 
 <!-- Cursor emoji burst -->
