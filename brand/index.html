@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Brand Starter · meshy.fun</title>
+<meta name="description" content="Type a name. Get a full brand kit: logomark, wordmark, palette, font pair." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=Playfair+Display:wght@400;700&family=Lora:wght@400;700&family=Source+Serif+4:wght@400;700&family=DM+Serif+Display&family=Fraunces:wght@400;700&family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@400;500;700&family=Outfit:wght@400;500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A brand, in seconds.</div>
+      <button class="btn" id="regenBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg>
+        Regenerate
+      </button>
+      <button class="btn" id="surpriseBtn" title="Generate something completely new">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.91 5.66 5.59.81L15 13.75 16.36 19 12 16.23 7.64 19 9 13.75 4.5 9.47l5.59-.81z"/></svg>
+        Surprise me
+      </button>
+      <button class="btn primary" id="downloadBtn">Download kit</button>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="brand-grid" id="brandGrid"></div>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .canvas { padding: 0; overflow-y: auto; }
+  .brand-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1px;
+    background: var(--line);
+    min-height: 100%;
+  }
+  @media (max-width: 700px) {
+    .brand-grid { grid-template-columns: 1fr; }
+    .brand-tile.full { grid-column: 1 / -1; }
+    .brand-tile { padding: 22px; }
+  }
+  .brand-tile { background: #fff; padding: 36px; display: flex; flex-direction: column; gap: 16px; }
+  .brand-tile.full { grid-column: 1 / -1; }
+  .tile-head { display: flex; align-items: center; justify-content: space-between; }
+  .tile-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3); font-weight: 600; }
+  .tile-action { font-size: 11px; color: var(--ink-3); cursor: pointer; }
+  .tile-action:hover { color: var(--ink); }
+  .tile-content { display: flex; align-items: center; justify-content: center; min-height: 160px; }
+  /* Logomark */
+  .lock-up { display: flex; align-items: center; gap: 20px; }
+  .lock-up .mark { width: 100px; height: 100px; flex-shrink: 0; }
+  .lock-up .word { font-weight: 700; font-size: 38px; line-height: 1; letter-spacing: -0.02em; }
+  /* Palette */
+  .palette-row { display: flex; gap: 6px; width: 100%; }
+  .palette-row .sw { flex: 1; aspect-ratio: 1/1.2; border-radius: 8px; position: relative; display: flex; align-items: flex-end; padding: 8px; color: #fff; font-family: 'SF Mono', monospace; font-size: 10px; cursor: pointer; }
+  /* Type pair */
+  .type-pair { width: 100%; }
+  .type-head { font-size: 36px; line-height: 1.1; margin: 0 0 8px; font-weight: 700; letter-spacing: -0.02em; }
+  .type-body { font-size: 14px; line-height: 1.55; margin: 0; color: var(--ink-2); }
+  .type-meta { font-family: 'SF Mono', monospace; font-size: 10px; color: var(--ink-3); margin-top: 12px; }
+  /* Examples grid in sidebar */
+  .example-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .example-card {
+    aspect-ratio: 1/1.15;
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    border: 1.5px solid transparent;
+    background: #fafafa;
+    transition: transform .15s ease, box-shadow .15s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 6px;
+  }
+  .example-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .example-card.active { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  .example-card .ex-mark { width: 100%; aspect-ratio: 1; }
+  .example-card .ex-mark svg { width: 100%; height: 100%; display: block; }
+  .example-card .ex-name { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 13px; line-height: 1; text-align: center; color: var(--ink); }
+  /* Avatar row */
+  .avatar-row { display: flex; gap: 14px; align-items: center; }
+  .avatar-row svg { width: 64px; height: 64px; }
+  .avatar-row .a-sm svg { width: 32px; height: 32px; }
+  .avatar-row .a-xs svg { width: 20px; height: 20px; }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const PALETTES = [
+  { name: 'Iris', colors: ['#667EEA','#764BA2','#F093FB','#F5576C','#4FACFE'] },
+  { name: 'Sunset', colors: ['#FF6B6B','#FFA07A','#FFD56B','#FF8E72','#FF5E78'] },
+  { name: 'Ocean', colors: ['#A1C4FD','#C2E9FB','#E0C3FC','#8EC5FC','#B5FFFC'] },
+  { name: 'Peach', colors: ['#FFB199','#FF8FA3','#FFC8A2','#FFD6A5','#FF9A8B'] },
+  { name: 'Midnight', colors: ['#0F2027','#203A43','#2C5364','#1F1C2C','#928DAB'] },
+  { name: 'Mint', colors: ['#D4FC79','#96E6A1','#C2E9FB','#A1FFCE','#FAFFD1'] },
+  { name: 'Cyber', colors: ['#FF0080','#7928CA','#FF4D4D','#F9CB28','#0070F3'] },
+  { name: 'Mocha', colors: ['#A47864','#C9A47C','#7B5944','#E6CFB5','#8D6748'] },
+  { name: 'Forest', colors: ['#283C2A','#52796F','#84A98C','#CAD2C5','#354F52'] },
+];
+const stops = [[20,25],[75,30],[40,75],[80,80],[50,50]];
+const SHAPES = ['circle','squircle','hexagon','rounded'];
+const FONT_PAIRS = [
+  { head: 'Instrument Serif', body: 'Inter', vibe: 'Editorial · Modern' },
+  { head: 'Playfair Display', body: 'Source Serif 4', vibe: 'Classic · Bookish' },
+  { head: 'DM Serif Display', body: 'DM Sans', vibe: 'Friendly · Versatile' },
+  { head: 'Fraunces', body: 'Manrope', vibe: 'Distinctive · Warm' },
+  { head: 'Space Grotesk', body: 'Inter', vibe: 'Tech · Geometric' },
+  { head: 'Outfit', body: 'Outfit', vibe: 'Single-family · Bold' },
+  { head: 'Lora', body: 'Inter', vibe: 'Traditional · Approachable' },
+];
+
+// Lucide-style icons for example brands
+const ICONS = {
+  sun:      'M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41',
+  flame:    'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z',
+  droplet:  'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z',
+  zap:      'M13 2L3 14h9l-1 8 10-12h-9z',
+  compass:  'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z',
+  cloud:    'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z',
+  flower:   'M12 7.5a4.5 4.5 0 1 1 4.5 4.5M12 7.5A4.5 4.5 0 1 0 7.5 12M12 7.5V9m-4.5 3a4.5 4.5 0 1 0 4.5 4.5M7.5 12H9m7.5 0a4.5 4.5 0 1 1-4.5 4.5m4.5-4.5H15m-3 4.5V15 M12 7.5V2 M12 22v-2.5',
+  book:     'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z',
+  leaf:     'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96a1 1 0 0 1 1.8.78c-3 12.5-7 17-10 17z M2 21c0-3 1.85-5.36 5.08-6',
+  mountain: 'M8 3l4 8 5-5 5 15H2L8 3z',
+  star:     'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+  rocket:   'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0',
+  music:    'M9 18V5l12-2v13 M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z M21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+  anchor:   'M12 22V8 M5 12H2a10 10 0 0 0 20 0h-3 M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  feather:  'M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z M16 8L2 22 M17.5 15H9',
+  sparkles: 'M12 3l1.91 5.66 5.59.81L15 13.75 16.36 19 12 16.23 7.64 19 9 13.75 4.5 9.47l5.59-.81z',
+};
+
+// Pre-prepared example brand identities
+const EXAMPLES = [
+  { name: 'Lumen',   colors: ['#FFE5D9','#FFCAB1','#FFB088','#FF9466','#FF7E5F'], shape: 'circle',   pair: 0, icon: 'sun',      tag: 'Warm light' },
+  { name: 'Forge',   colors: ['#1C2126','#3D2914','#8B3A1E','#D9651E','#F09419'], shape: 'hexagon',  pair: 4, icon: 'flame',    tag: 'Tech · Bold' },
+  { name: 'Petal',   colors: ['#FFDEE9','#FFBED9','#FFA8C8','#FF8FB4','#F176A0'], shape: 'rounded',  pair: 1, icon: 'flower',   tag: 'Feminine · Soft' },
+  { name: 'Tide',    colors: ['#0A2540','#1B4E7A','#2E7BBE','#5EA9DD','#A4D2F4'], shape: 'squircle', pair: 4, icon: 'droplet',  tag: 'Ocean · Cool' },
+  { name: 'Pulse',   colors: ['#FF006E','#FB5607','#FFBE0B','#8338EC','#3A86FF'], shape: 'circle',   pair: 5, icon: 'zap',      tag: 'Vibrant · Energy' },
+  { name: 'Ember',   colors: ['#7C2D12','#C2410C','#EA580C','#F97316','#FB923C'], shape: 'hexagon',  pair: 3, icon: 'flame',    tag: 'Warm · Cozy' },
+  { name: 'Atlas',   colors: ['#0F2027','#203A43','#2C5364','#3D5A6C','#7A9AAB'], shape: 'squircle', pair: 1, icon: 'compass',  tag: 'Confident · Maps' },
+  { name: 'Citrus',  colors: ['#FFF066','#FFD23F','#F7B500','#EA8C00','#B85C00'], shape: 'rounded',  pair: 5, icon: 'leaf',     tag: 'Fresh · Wellness' },
+  { name: 'Nimbus',  colors: ['#E0EAFC','#CFDEF3','#B8CEEC','#8FA8D8','#5E76BB'], shape: 'circle',   pair: 4, icon: 'cloud',    tag: 'Soft · Tech' },
+  { name: 'Vanta',   colors: ['#0a0a0a','#1a1a1a','#3a3a3a','#5a5a5a','#9a9a9a'], shape: 'square',   pair: 5,                    tag: 'Minimal · Mono' },
+  { name: 'Bloom',   colors: ['#FBC2EB','#A6C1EE','#D4A5FF','#FF9EC0','#B991F1'], shape: 'circle',   pair: 1, icon: 'flower',   tag: 'Floral · Wellness' },
+  { name: 'Kindle',  colors: ['#C44536','#E76F51','#F4A261','#E9C46A','#A47148'], shape: 'squircle', pair: 6, icon: 'book',     tag: 'Earthy · Books' },
+  { name: 'Aurora',  colors: ['#000428','#004E92','#7303C0','#EC38BC','#FDEFF9'], shape: 'circle',   pair: 0, icon: 'sparkles', tag: 'Mystical · Editorial' },
+  { name: 'Summit',  colors: ['#2C3E50','#34495E','#8B7E66','#C5A572','#E8D4A8'], shape: 'hexagon',  pair: 3, icon: 'mountain', tag: 'Bold · Outdoor' },
+  { name: 'Riff',    colors: ['#1A1A2E','#16213E','#E94560','#FF6B9D','#C44569'], shape: 'rounded',  pair: 4, icon: 'music',    tag: 'Music · Edgy' },
+  { name: 'Folio',   colors: ['#264653','#2A9D8F','#E9C46A','#F4A261','#E76F51'], shape: 'squircle', pair: 0, icon: 'feather',  tag: 'Editorial · Crafted' },
+];
+
+const state = {
+  name: 'Meshy',
+  palette: 0,
+  customPalette: null,
+  customStops: null,
+  customLabel: null,
+  shape: 'squircle',
+  pair: 0,
+  markFont: 'Manrope',
+  wordFont: 'Inter',
+  icon: null,
+};
+function getColors() { return state.customPalette || PALETTES[state.palette].colors; }
+function getStops() { return state.customStops || stops; }
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Brand')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Brand name</div>
+      <input type="text" id="name" value="Meshy" placeholder="Your brand name" maxlength="30" style="font-size:15px">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Examples <span class="count">${EXAMPLES.length}</span></div>
+      <div class="example-grid" id="examplesGrid"></div>
+      <div style="font-size:11px;color:var(--ink-3);margin-top:8px">Click any example to load a complete brand kit</div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Lock the palette</div>
+      <div class="thumb-grid" id="palLock"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Lock the shape</div>
+      <div class="chips" id="shapeChips">
+        ${SHAPES.map(s => `<div class="chip ${s==='squircle'?'active':''}" data-s="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml('Pick an <strong>example</strong> or <strong>Surprise me</strong>')}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Kit Contents</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div style="font-size:12.5px;color:var(--ink-2);line-height:1.6;margin-bottom:14px">Your downloadable brand kit will contain:</div>
+      <div style="font-size:12px;color:var(--ink-2);line-height:1.9;font-family:'SF Mono',monospace">
+        <div>· logomark.svg + .png</div>
+        <div>· wordmark.svg + .png</div>
+        <div>· lockup.svg + .png</div>
+        <div>· avatar-512.png</div>
+        <div>· palette.css</div>
+        <div>· typography.css</div>
+        <div>· brand.json</div>
+      </div>
+    </div>
+    <div class="sec">
+      <button class="btn full" id="downloadBtn2">Download kit</button>
+      <button class="btn full" id="copyJsonBtn" style="margin-top:8px">Copy brand JSON</button>
+    </div>
+  </div>
+`;
+
+function hexToRgb(h){ return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+function lum(rgb) { const a = rgb.map(v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);}); return a[0]*0.2126+a[1]*0.7152+a[2]*0.0722; }
+
+function shapePath(shape, s) {
+  switch (shape) {
+    case 'circle': return `<circle cx="${s/2}" cy="${s/2}" r="${s/2}"/>`;
+    case 'squircle': return `<rect width="${s}" height="${s}" rx="${s*0.32}"/>`;
+    case 'rounded': return `<rect width="${s}" height="${s}" rx="${s*0.16}"/>`;
+    case 'hexagon': {
+      const cx = s/2, cy = s/2, r = s/2;
+      const pts = [];
+      for (let i = 0; i < 6; i++) { const a = (Math.PI/3)*i - Math.PI/2; pts.push(`${(cx+r*Math.cos(a)).toFixed(1)},${(cy+r*Math.sin(a)).toFixed(1)}`); }
+      return `<polygon points="${pts.join(' ')}"/>`;
+    }
+  }
+}
+
+function getInitials() {
+  const words = state.name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '?';
+  if (words.length === 1) return words[0][0].toUpperCase();
+  return (words[0][0] + words[words.length-1][0]).toUpperCase();
+}
+
+function buildLogomark(size = 200) {
+  const colors = getColors();
+  const localStops = getStops();
+  const initials = getInitials();
+  const avg = colors.reduce((a, c) => { const r = hexToRgb(c); return [a[0]+r[0], a[1]+r[1], a[2]+r[2]]; }, [0,0,0]).map(x => x/colors.length);
+  const textCol = lum(avg) > 0.55 ? '#0a0a0a' : '#ffffff';
+  const grads = colors.map((c, i) => {
+    const [x, y] = localStops[i % localStops.length];
+    return `<radialGradient id="bg${i}" cx="${x}%" cy="${y}%" r="55%"><stop offset="0%" stop-color="${c}" stop-opacity="0.95"/><stop offset="100%" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+  }).join('');
+  const layers = colors.map((c, i) =>
+    `<rect width="100" height="100" fill="url(#bg${i})" style="mix-blend-mode:${i===0?'normal':'screen'}"/>`
+  ).join('');
+  let foreground;
+  if (state.icon && ICONS[state.icon]) {
+    const iconSize = 56;
+    const tx = (100 - iconSize) / 2, ty = (100 - iconSize) / 2;
+    const scale = iconSize / 24;
+    foreground = `<g transform="translate(${tx} ${ty}) scale(${scale})" stroke="${textCol}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="${ICONS[state.icon]}"/></g>`;
+  } else {
+    const fontSize = initials.length === 1 ? 52 : 42;
+    foreground = `<text x="50" y="50" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-family="${state.markFont}, sans-serif" font-weight="800" font-size="${fontSize}" letter-spacing="-0.02em">${initials}</text>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}">
+    <defs>${grads}<clipPath id="bclip">${shapePath(state.shape, 100)}</clipPath></defs>
+    <g clip-path="url(#bclip)"><rect width="100" height="100" fill="${colors[0]}"/>${layers}</g>
+    ${foreground}
+  </svg>`;
+}
+
+function render() {
+  const pair = FONT_PAIRS[state.pair];
+  const colors = getColors();
+  const palLabel = state.customPalette ? `✨ ${state.customLabel || 'Custom'}` : PALETTES[state.palette].name;
+  const grid = document.getElementById('brandGrid');
+  grid.innerHTML = `
+    <div class="brand-tile">
+      <div class="tile-head"><div class="tile-label">Logomark</div><div class="tile-action" id="exLogo">Open in Logomark →</div></div>
+      <div class="tile-content">${buildLogomark(160)}</div>
+    </div>
+    <div class="brand-tile">
+      <div class="tile-head"><div class="tile-label">Wordmark</div><div class="tile-action" id="exWord">Open in Wordmark →</div></div>
+      <div class="tile-content">
+        <div style="font-family:'${pair.head}',serif;font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.02em;color:${colors[0]}">${escape(state.name)}</div>
+      </div>
+    </div>
+    <div class="brand-tile">
+      <div class="tile-head"><div class="tile-label">Lock-up</div></div>
+      <div class="tile-content">
+        <div class="lock-up">
+          <div class="mark">${buildLogomark(100)}</div>
+          <div class="word" style="font-family:'${pair.head}',serif;color:${colors[0]}">${escape(state.name)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="brand-tile">
+      <div class="tile-head"><div class="tile-label">Avatars</div><div class="tile-action" id="exAv">Open in Avatar →</div></div>
+      <div class="tile-content">
+        <div class="avatar-row">
+          ${buildLogomark(96)}
+          <div class="a-sm">${buildLogomark(48)}</div>
+          <div class="a-xs">${buildLogomark(28)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="brand-tile full">
+      <div class="tile-head"><div class="tile-label">Palette · ${palLabel}</div><div class="tile-action" id="exPal">Open in Mesh →</div></div>
+      <div class="tile-content">
+        <div class="palette-row">
+          ${colors.map(c => {
+            const tc = lum(hexToRgb(c)) > 0.55 ? '#0a0a0a' : '#fff';
+            return `<div class="sw" style="background:${c};color:${tc}" data-c="${c}">${c.toUpperCase()}</div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="brand-tile full">
+      <div class="tile-head"><div class="tile-label">Type pair · ${pair.head} + ${pair.body}</div><div class="tile-action" id="exFont">Open in Fonts →</div></div>
+      <div class="tile-content">
+        <div class="type-pair">
+          <h2 class="type-head" style="font-family:'${pair.head}',serif">${escape(state.name)} — a brand born today.</h2>
+          <p class="type-body" style="font-family:'${pair.body}',sans-serif">This is your body copy, set in ${pair.body}. Headlines use ${pair.head}. Together they speak the voice of your brand — confident, considered, ready to ship.</p>
+          <div class="type-meta">${pair.vibe}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  // wire palette swatch clicks
+  grid.querySelectorAll('.sw').forEach(sw => sw.addEventListener('click', () => meshy.copy(sw.dataset.c, sw.dataset.c.toUpperCase()+' copied')));
+  // tile actions
+  document.getElementById('exLogo')?.addEventListener('click', () => window.open('/logomark/', '_blank'));
+  document.getElementById('exWord')?.addEventListener('click', () => window.open('/wordmark/', '_blank'));
+  document.getElementById('exAv')?.addEventListener('click', () => window.open('/avatar/', '_blank'));
+  document.getElementById('exPal')?.addEventListener('click', () => {
+    const hash = btoa(unescape(encodeURIComponent(JSON.stringify({ c: colors }))));
+    window.open('/mesh/#' + hash, '_blank');
+  });
+  document.getElementById('exFont')?.addEventListener('click', () => window.open('/fonts/', '_blank'));
+}
+
+function renderPalLock() {
+  const wrap = document.getElementById('palLock');
+  wrap.innerHTML = '';
+  if (state.customPalette) {
+    const el = document.createElement('div');
+    el.className = 'thumb-card active';
+    const cs = state.customStops || stops;
+    el.style.background = state.customPalette.map((c, j) => `radial-gradient(at ${cs[j][0]}% ${cs[j][1]}%, ${c} 0px, transparent 50%)`).join(', ') + `, ${state.customPalette[0]}`;
+    el.innerHTML = `<div class="name">✨ ${state.customLabel || 'Custom'}</div>`;
+    wrap.appendChild(el);
+  }
+  PALETTES.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'thumb-card' + (!state.customPalette && i === state.palette ? ' active' : '');
+    el.style.background = p.colors.map((c, j) => `radial-gradient(at ${stops[j][0]}% ${stops[j][1]}%, ${c} 0px, transparent 50%)`).join(', ') + `, ${p.colors[0]}`;
+    el.innerHTML = `<div class="name">${p.name}</div>`;
+    el.addEventListener('click', () => {
+      state.palette = i;
+      state.customPalette = null; state.customStops = null; state.customLabel = null;
+      renderPalLock(); render();
+    });
+    wrap.appendChild(el);
+  });
+}
+
+function escape(s) { return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+document.getElementById('name').addEventListener('input', e => { state.name = e.target.value; render(); });
+document.getElementById('shapeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#shapeChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.shape = c.dataset.s;
+  render();
+});
+
+function regenerate() {
+  state.palette = Math.floor(Math.random() * PALETTES.length);
+  state.customPalette = null; state.customStops = null; state.customLabel = null;
+  state.pair = Math.floor(Math.random() * FONT_PAIRS.length);
+  renderPalLock();
+  render();
+}
+document.getElementById('regenBtn').addEventListener('click', regenerate);
+
+document.getElementById('surpriseBtn').addEventListener('click', () => {
+  const harmonies = ['analogous','complementary','triadic','tetradic','monochromatic','split','warm','cool','duotone'];
+  const harmony = meshy.pickOne(harmonies);
+  state.customPalette = meshy.randomPalette({ harmony });
+  state.customStops = meshy.randomStops();
+  state.customLabel = harmony.charAt(0).toUpperCase() + harmony.slice(1);
+  state.pair = Math.floor(Math.random() * FONT_PAIRS.length);
+  state.shape = meshy.pickOne(SHAPES);
+  document.querySelectorAll('#shapeChips .chip').forEach(c => c.classList.toggle('active', c.dataset.s === state.shape));
+  renderPalLock();
+  render();
+  meshy.toast(`✨ ${state.customLabel} harmony`);
+});
+
+function brandJson() {
+  const colors = getColors();
+  const pair = FONT_PAIRS[state.pair];
+  const palName = state.customPalette ? `Custom (${state.customLabel || 'random'})` : PALETTES[state.palette].name;
+  return JSON.stringify({
+    name: state.name,
+    palette: { name: palName, colors },
+    typography: { headline: pair.head, body: pair.body, vibe: pair.vibe },
+    logomark: { shape: state.shape, initials: getInitials() },
+  }, null, 2);
+}
+
+document.getElementById('copyJsonBtn').addEventListener('click', () => meshy.copy(brandJson(), 'Brand JSON copied'));
+
+function downloadKit() {
+  const safeName = state.name.replace(/[^a-z0-9]/gi,'-').toLowerCase() || 'brand';
+  const colors = getColors();
+  const pair = FONT_PAIRS[state.pair];
+
+  // 1. logomark.svg
+  downloadBlob(buildLogomark(512), 'image/svg+xml', `${safeName}-logomark.svg`);
+  // 2. logomark.png (via canvas)
+  setTimeout(() => svgToPng(buildLogomark(1024), 1024, `${safeName}-logomark.png`), 200);
+  // 3. avatar (same as logomark for now)
+  setTimeout(() => svgToPng(buildLogomark(512), 512, `${safeName}-avatar-512.png`), 400);
+  // 4. palette.css
+  setTimeout(() => {
+    const css = `:root {\n${colors.map((c, i) => `  --brand-${i+1}: ${c};`).join('\n')}\n}`;
+    downloadBlob(css, 'text/css', `${safeName}-palette.css`);
+  }, 600);
+  // 5. typography.css
+  setTimeout(() => {
+    const css = `@import url('https://fonts.googleapis.com/css2?family=${pair.head.replace(/ /g,'+')}&family=${pair.body.replace(/ /g,'+')}&display=swap');\n\n:root {\n  --font-head: '${pair.head}', serif;\n  --font-body: '${pair.body}', sans-serif;\n}\n\nh1, h2, h3 { font-family: var(--font-head); }\nbody { font-family: var(--font-body); }`;
+    downloadBlob(css, 'text/css', `${safeName}-typography.css`);
+  }, 800);
+  // 6. brand.json
+  setTimeout(() => downloadBlob(brandJson(), 'application/json', `${safeName}-brand.json`), 1000);
+
+  meshy.toast('Downloading brand kit...');
+}
+
+function downloadBlob(content, type, name) {
+  const blob = new Blob([content], { type });
+  const link = document.createElement('a');
+  link.download = name;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+}
+
+function svgToPng(svgStr, size, name) {
+  const img = new Image();
+  const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    c.getContext('2d').drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a');
+    link.download = name;
+    link.href = c.toDataURL('image/png');
+    link.click();
+  };
+  img.src = url;
+}
+
+document.getElementById('downloadBtn').addEventListener('click', downloadKit);
+document.getElementById('downloadBtn2').addEventListener('click', downloadKit);
+
+// Build a mini logomark thumbnail for any state-like object
+function buildMiniLogomark(ex, size = 80) {
+  const colors = ex.colors;
+  const ls = stops;
+  const grads = colors.map((c, i) => {
+    const [x, y] = ls[i % ls.length];
+    return `<radialGradient id="ex${ex.name}${i}" cx="${x}%" cy="${y}%" r="55%"><stop offset="0%" stop-color="${c}" stop-opacity="0.95"/><stop offset="100%" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+  }).join('');
+  const layers = colors.map((c, i) => `<rect width="100" height="100" fill="url(#ex${ex.name}${i})" style="mix-blend-mode:${i===0?'normal':'screen'}"/>`).join('');
+  const avg = colors.reduce((a, c) => { const r = hexToRgb(c); return [a[0]+r[0], a[1]+r[1], a[2]+r[2]]; }, [0,0,0]).map(x => x/colors.length);
+  const textCol = lum(avg) > 0.55 ? '#0a0a0a' : '#ffffff';
+  let fg;
+  if (ex.icon && ICONS[ex.icon]) {
+    const iconSize = 56, tx = (100-iconSize)/2, ty = (100-iconSize)/2, scale = iconSize/24;
+    fg = `<g transform="translate(${tx} ${ty}) scale(${scale})" stroke="${textCol}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="${ICONS[ex.icon]}"/></g>`;
+  } else {
+    const initial = ex.name[0].toUpperCase();
+    fg = `<text x="50" y="50" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-family="Manrope, sans-serif" font-weight="800" font-size="52">${initial}</text>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}"><defs>${grads}<clipPath id="exclip${ex.name}">${shapePath(ex.shape, 100)}</clipPath></defs><g clip-path="url(#exclip${ex.name})"><rect width="100" height="100" fill="${colors[0]}"/>${layers}</g>${fg}</svg>`;
+}
+
+function renderExamples() {
+  const wrap = document.getElementById('examplesGrid');
+  wrap.innerHTML = '';
+  EXAMPLES.forEach(ex => {
+    const el = document.createElement('div');
+    const isActive = state.customLabel === `Example: ${ex.name}`;
+    el.className = 'example-card' + (isActive ? ' active' : '');
+    el.innerHTML = `<div class="ex-mark">${buildMiniLogomark(ex, 100)}</div><div class="ex-name">${ex.name}</div>`;
+    el.title = `${ex.name} — ${ex.tag}`;
+    el.addEventListener('click', () => loadExample(ex));
+    wrap.appendChild(el);
+  });
+}
+
+function loadExample(ex) {
+  state.name = ex.name;
+  state.customPalette = ex.colors;
+  state.customStops = stops;
+  state.customLabel = `Example: ${ex.name}`;
+  state.shape = ex.shape;
+  state.pair = ex.pair;
+  state.icon = ex.icon || null;
+  // Sync UI
+  document.getElementById('name').value = state.name;
+  document.querySelectorAll('#shapeChips .chip').forEach(c => c.classList.toggle('active', c.dataset.s === state.shape));
+  renderExamples();
+  renderPalLock();
+  render();
+  meshy.toast(`Loaded ${ex.name}`);
+}
+
+// Wrap regenerate/surprise to clear example marker and icon
+const _regen = document.getElementById('regenBtn');
+const _origRegen = _regen.onclick;
+document.getElementById('regenBtn').addEventListener('click', () => { state.icon = null; renderExamples(); });
+document.getElementById('surpriseBtn').addEventListener('click', () => { state.icon = null; renderExamples(); });
+
+renderExamples();
+renderPalLock();
+render();
+</script>
+</body>
+</html>

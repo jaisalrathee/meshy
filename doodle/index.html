@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Doodle Background · meshy.fun</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A doodled background.</div>
+      <button class="btn" id="newSeedBtn">New seed</button>
+      <button class="btn" id="copyBtn">Copy CSS</button>
+      <button class="btn primary" id="downloadBtn">Download SVG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+    <div class="canvas-bottom">
+      <div class="output-wrap"><pre class="output" id="cssOut"></pre><button class="copy-btn" id="copyBtn2">Copy</button></div>
+    </div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 24px; background: #fafafa; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.1); border-radius: 12px; display: block; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const DOODLES = {
+  stars: 'M 0 -8 L 2 -2 L 8 -2 L 3 2 L 5 8 L 0 4 L -5 8 L -3 2 L -8 -2 L -2 -2 Z',
+  hearts: 'M 0 -2 C -4 -8, -10 -4, 0 6 C 10 -4, 4 -8, 0 -2 Z',
+  squiggle: 'M -8 0 Q -4 -4 0 0 T 8 0',
+  cross: 'M -5 0 L 5 0 M 0 -5 L 0 5',
+  circle: 'M -5 0 A 5 5 0 1 0 5 0 A 5 5 0 1 0 -5 0',
+  triangle: 'M 0 -6 L 5 4 L -5 4 Z',
+  dot: 'M -2 0 A 2 2 0 1 0 2 0 A 2 2 0 1 0 -2 0',
+  flower: 'M 0 -4 A 2 2 0 1 0 0 0 M 4 0 A 2 2 0 1 0 0 0 M 0 4 A 2 2 0 1 0 0 0 M -4 0 A 2 2 0 1 0 0 0',
+  zigzag: 'M -8 -3 L -4 3 L 0 -3 L 4 3 L 8 -3',
+  arrow: 'M -6 0 L 6 0 M 3 -3 L 6 0 L 3 3',
+  plus: 'M -4 0 L 4 0 M 0 -4 L 0 4',
+  smile: 'M -5 -2 A 5 5 0 0 0 5 -2 M -2 -4 L -2 -4.5 M 2 -4 L 2 -4.5',
+};
+
+const state = { doodles: ['stars','squiggle','dot'], density: 30, size: 18, jitter: 30, color: '#0a0a0a', bg: '#fafafa', strokeWidth: 1.5, seed: 7, w: 1200, h: 800 };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Doodle')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Pick doodles <span class="count" id="pickedCount">3</span></div>
+      <div class="chips" id="doodleChips">
+        ${Object.keys(DOODLES).map(k => `<div class="chip ${['stars','squiggle','dot'].includes(k)?'active':''}" data-d="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml('Tap doodles to toggle. <strong>New seed</strong> for new layout.')}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Density</label><span class="val" id="densityVal">30</span></div>
+      <input type="range" id="density" min="5" max="100" value="30">
+      <div class="row" style="margin-top:14px"><label>Size</label><span class="val" id="sizeVal">18px</span></div>
+      <input type="range" id="size" min="6" max="60" value="18">
+      <div class="row" style="margin-top:14px"><label>Jitter</label><span class="val" id="jitterVal">30%</span></div>
+      <input type="range" id="jitter" min="0" max="100" value="30">
+      <div class="row" style="margin-top:14px"><label>Stroke</label><span class="val" id="strokeWidthVal">1.5</span></div>
+      <input type="range" id="strokeWidth" min="5" max="40" value="15">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Colors</div>
+      <div class="row"><label>Doodle</label></div>
+      <input type="color" id="color" value="#0a0a0a">
+      <div class="row" style="margin-top:12px"><label>Background</label></div>
+      <input type="color" id="bg" value="#fafafa">
+    </div>
+  </div>
+`;
+
+function rand(seed) { return () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }; }
+
+function buildSvg() {
+  const W = state.w, H = state.h;
+  const r = rand(state.seed);
+  let body = '';
+  const cols = Math.ceil(Math.sqrt(state.density * (W/H)));
+  const rows = Math.ceil(state.density / cols);
+  const cellW = W / cols, cellH = H / rows;
+  const doodles = state.doodles.length ? state.doodles : ['dot'];
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const cx = x*cellW + cellW/2 + (r()-0.5) * cellW * (state.jitter/100);
+    const cy = y*cellH + cellH/2 + (r()-0.5) * cellH * (state.jitter/100);
+    const rot = (r()-0.5) * 60 * (state.jitter/100);
+    const scale = state.size/12 * (0.8 + r()*0.4);
+    const d = doodles[Math.floor(r() * doodles.length)];
+    body += `<path d="${DOODLES[d]}" stroke="${state.color}" stroke-width="${state.strokeWidth/10}" fill="${d==='dot'||d==='hearts'||d==='triangle'?state.color:'none'}" stroke-linecap="round" stroke-linejoin="round" transform="translate(${cx.toFixed(1)} ${cy.toFixed(1)}) rotate(${rot.toFixed(0)}) scale(${scale.toFixed(2)})"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${state.bg}"/>${body}</svg>`;
+}
+
+function render() {
+  const svg = buildSvg();
+  document.getElementById('outSvg').outerHTML = svg.replace('<svg ', '<svg id="outSvg" ');
+  const css = `background-color: ${state.bg};\nbackground-image: url("data:image/svg+xml;utf8,${encodeURIComponent(svg).replace(/"/g,'%22')}");`;
+  document.getElementById('cssOut').textContent = css;
+}
+
+function bindRange(id,key,suffix='') {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = +e.target.value;
+    let display = state[key];
+    if (id === 'strokeWidth') display = (state[key]/10).toFixed(1);
+    document.getElementById(id+'Val').textContent = display + suffix;
+    render();
+  });
+}
+bindRange('density','density'); bindRange('size','size','px'); bindRange('jitter','jitter','%'); bindRange('strokeWidth','strokeWidth');
+document.getElementById('color').addEventListener('input', e => { state.color = e.target.value; render(); });
+document.getElementById('bg').addEventListener('input', e => { state.bg = e.target.value; render(); });
+document.getElementById('doodleChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  const d = c.dataset.d;
+  if (state.doodles.includes(d)) state.doodles = state.doodles.filter(x => x !== d);
+  else state.doodles.push(d);
+  c.classList.toggle('active');
+  document.getElementById('pickedCount').textContent = state.doodles.length;
+  render();
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); render(); });
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(document.getElementById('cssOut').textContent, 'CSS copied'));
+document.getElementById('copyBtn2').addEventListener('click', () => meshy.copy(document.getElementById('cssOut').textContent, 'CSS copied'));
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const link = document.createElement('a'); link.download = 'doodle-bg.svg'; link.href = URL.createObjectURL(blob); link.click();
+});
+
+render();
+</script>
+</body>
+</html>

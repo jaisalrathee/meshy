@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>God Rays · meshy.fun</title>
+<meta name="description" content="Cinematic light rays overlay on any image." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A cinematic light ray.</div>
+      <button class="btn" id="uploadBtn">Upload</button>
+      <button class="btn" id="randomBtn">Random</button>
+      <button class="btn primary" id="exportBtn">Export PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><canvas id="outCanvas"></canvas></div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<input type="file" id="fileInput" accept="image/*" style="display:none">
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 24px; background: #0a0a0a; }
+  #outCanvas { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.4); border-radius: 8px; }
+  .ex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ex-tile { aspect-ratio: 1.4/1; border-radius: 8px; cursor: pointer; border: 1.5px solid transparent; overflow: hidden; transition: transform .15s; background: #1a1a1a center/cover; position: relative; }
+  .ex-tile:hover { transform: translateY(-2px); }
+  .ex-tile.active { border-color: var(--ink); box-shadow: 0 0 0 1px #fff; }
+  .ex-tile .ex-label { position: absolute; bottom: 4px; left: 6px; font-size: 9px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); font-weight: 500; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const state = { sample: meshy.SAMPLE_PHOTOS[0].id, custom: null, loadedImage: null, color: '#ffe8b0', position: 'top', angle: 30, posX: 50, spread: 80, height: 100, edgeFade: 50, rays: 8, intensity: 70 };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Rays')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Examples <span class="count">${meshy.SAMPLE_PHOTOS.length}</span></div>
+      <div class="ex-grid" id="exGrid"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Ray color</div>
+      <input type="color" id="color" value="#ffe8b0">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Placement</div>
+      <div class="chips" id="positionChips">
+        <div class="chip active" data-p="top">Top</div>
+        <div class="chip" data-p="bottom">Bottom</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Angle</label><span class="val" id="angleVal">30°</span></div>
+      <input type="range" id="angle" min="-60" max="60" value="30">
+      <div class="row" style="margin-top:14px"><label>Position</label><span class="val" id="posXVal">50%</span></div>
+      <input type="range" id="posX" min="0" max="100" value="50">
+      <div class="row" style="margin-top:14px"><label>Spread</label><span class="val" id="spreadVal">80%</span></div>
+      <input type="range" id="spread" min="20" max="200" value="80">
+      <div class="row" style="margin-top:14px"><label>Height</label><span class="val" id="heightVal">100%</span></div>
+      <input type="range" id="height" min="30" max="150" value="100">
+      <div class="row" style="margin-top:14px"><label>Edge fade</label><span class="val" id="edgeFadeVal">50%</span></div>
+      <input type="range" id="edgeFade" min="0" max="100" value="50">
+      <div class="row" style="margin-top:14px"><label>Number of rays</label><span class="val" id="raysVal">8</span></div>
+      <input type="range" id="rays" min="3" max="30" value="8">
+      <div class="row" style="margin-top:14px"><label>Intensity</label><span class="val" id="intensityVal">70%</span></div>
+      <input type="range" id="intensity" min="10" max="100" value="70">
+    </div>
+  </div>
+`;
+
+function renderExamples() {
+  const wrap = document.getElementById('exGrid'); wrap.innerHTML = '';
+  meshy.SAMPLE_PHOTOS.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'ex-tile' + (s.id===state.sample&&!state.custom?' active':'');
+    el.style.backgroundImage = `url("${s.url.replace('w=900','w=200')}")`;
+    el.innerHTML = `<div class="ex-label">${s.name}</div>`;
+    el.addEventListener('click', () => loadSampleById(s.id));
+    wrap.appendChild(el);
+  });
+}
+async function loadSampleById(id) {
+  try {
+    const img = await meshy.loadSample(id);
+    state.sample = id; state.custom = null; state.loadedImage = img;
+    renderExamples(); render();
+  } catch (e) { meshy.toast('Failed to load sample'); }
+}
+
+function hexToRgb(h) { return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+
+function render(scale=1) {
+  if (!state.loadedImage) return;
+  const out = document.getElementById('outCanvas');
+  const src = state.loadedImage;
+  const srcW = src.naturalWidth, srcH = src.naturalHeight;
+  const W = 900*scale, H = Math.round(W * (srcH/srcW));
+  out.width = W; out.height = H;
+  const ctx = out.getContext('2d');
+  ctx.drawImage(src, 0, 0, W, H);
+  // Rays
+  const originX = (state.posX/100) * W;
+  const originY = state.position === 'top' ? -H*0.1 : H*1.1;
+  const baseAngle = (state.position === 'top' ? Math.PI/2 : -Math.PI/2) + (state.angle * Math.PI/180);
+  const spread = (state.spread/100) * Math.PI/2;
+  const rayLength = (state.height/100) * H * 1.4;
+  const [r,g,b] = hexToRgb(state.color);
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < state.rays; i++) {
+    const t = state.rays === 1 ? 0.5 : i / (state.rays - 1);
+    const angle = baseAngle - spread/2 + spread * t;
+    const x2 = originX + Math.cos(angle) * rayLength;
+    const y2 = originY + Math.sin(angle) * rayLength;
+    const grad = ctx.createLinearGradient(originX, originY, x2, y2);
+    grad.addColorStop(0, `rgba(${r},${g},${b},${state.intensity/100 * 0.9})`);
+    grad.addColorStop(0.5, `rgba(${r},${g},${b},${state.intensity/100 * 0.45})`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = grad;
+    const beamWidth = (rayLength * 0.15);
+    const perpX = -Math.sin(angle), perpY = Math.cos(angle);
+    ctx.beginPath();
+    ctx.moveTo(originX + perpX*beamWidth*0.15, originY + perpY*beamWidth*0.15);
+    ctx.lineTo(originX - perpX*beamWidth*0.15, originY - perpY*beamWidth*0.15);
+    ctx.lineTo(x2 - perpX*beamWidth, y2 - perpY*beamWidth);
+    ctx.lineTo(x2 + perpX*beamWidth, y2 + perpY*beamWidth);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  // Edge fade vignette
+  if (state.edgeFade > 0) {
+    const vg = ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.7);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(1,`rgba(0,0,0,${state.edgeFade/100 * 0.8})`);
+    ctx.fillStyle = vg; ctx.fillRect(0,0,W,H);
+  }
+}
+
+function bindRange(id,key,suffix='') {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = +e.target.value;
+    document.getElementById(id+'Val').textContent = state[key]+suffix;
+    render();
+  });
+}
+bindRange('angle','angle','°'); bindRange('posX','posX','%'); bindRange('spread','spread','%');
+bindRange('height','height','%'); bindRange('edgeFade','edgeFade','%'); bindRange('rays','rays'); bindRange('intensity','intensity','%');
+document.getElementById('color').addEventListener('input', e => { state.color = e.target.value; render(); });
+document.getElementById('positionChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#positionChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); state.position = c.dataset.p; render();
+});
+document.getElementById('randomBtn').addEventListener('click', () => {
+  state.angle = -60 + Math.random()*120;
+  state.posX = 20 + Math.random()*60;
+  state.spread = 50 + Math.random()*100;
+  state.rays = 5 + Math.floor(Math.random()*15);
+  state.color = '#' + ['ffe8b0','ffd070','ffb050','ff8080','b0d0ff','e0c0ff'][Math.floor(Math.random()*6)];
+  ['angle','posX','spread','rays','color'].forEach(k => {
+    const el = document.getElementById(k); el.value = state[k];
+    const sufMap = { angle:'°', posX:'%', spread:'%', rays:'' };
+    const valEl = document.getElementById(k+'Val'); if (valEl) valEl.textContent = state[k] + (sufMap[k] || '');
+  });
+  render();
+});
+document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e => e.target.files[0] && loadFile(e.target.files[0]));
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) loadFile(f); });
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => { const img = new Image(); img.onload = () => { state.custom = ev.target.result; state.loadedImage = img; renderExamples(); render(); }; img.src = ev.target.result; };
+  reader.readAsDataURL(file);
+}
+document.getElementById('exportBtn').addEventListener('click', () => {
+  render(2);
+  const out = document.getElementById('outCanvas');
+  const link = document.createElement('a'); link.download = 'godrays-'+Date.now()+'.png'; link.href = out.toDataURL('image/png'); link.click();
+  setTimeout(() => render(1), 50);
+  meshy.toast('Exported');
+});
+
+renderExamples(); loadSampleById(state.sample);
+</script>
+</body>
+</html>

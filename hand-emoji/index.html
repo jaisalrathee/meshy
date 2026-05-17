@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hand Emojis · meshy.fun</title>
+<meta name="description" content="Hand-drawn emoji set. Pick, recolor, copy SVG or download PNG." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A wobbly little emoji.</div>
+      <button class="btn" id="newSeedBtn">New variation</button>
+      <button class="btn" id="copyBtn">Copy SVG</button>
+      <button class="btn primary" id="pngBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 40px; background: #FBF6E9; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.08); border-radius: 8px; }
+  .emoji-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+  .emoji-pick { aspect-ratio: 1; border-radius: 10px; background: #fff; cursor: pointer; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; transition: transform .15s; }
+  .emoji-pick:hover { transform: translateY(-2px); }
+  .emoji-pick.active { border-color: var(--ink); }
+  .emoji-pick svg { width: 70%; height: 70%; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const state = { emoji: 'smile', color: '#FFD93D', stroke: '#0a0a0a', size: 240, paper: 'cream', seed: 3 };
+
+const PAPER = { cream: '#FBF6E9', white: '#ffffff', dark: '#0a0a0a', grid: '#F0E8D8' };
+
+function drawEmoji(name, cx, cy, size, color, stroke, r) {
+  const w = size, hw = size/2;
+  switch (name) {
+    case 'smile': {
+      let s = `<path d="${meshy.wobblyCircle(cx, cy, hw, 1.8, r)}" fill="${color}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>`;
+      // eyes
+      s += `<path d="${meshy.wobblyCircle(cx - hw*0.3, cy - hw*0.15, hw*0.08, 0.8, r)}" fill="${stroke}"/>`;
+      s += `<path d="${meshy.wobblyCircle(cx + hw*0.3, cy - hw*0.15, hw*0.08, 0.8, r)}" fill="${stroke}"/>`;
+      // smile
+      s += `<path d="M ${cx-hw*0.4} ${cy+hw*0.15} Q ${cx} ${cy+hw*0.5} ${cx+hw*0.4} ${cy+hw*0.15}" stroke="${stroke}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+      return s;
+    }
+    case 'heart': {
+      const path = `M ${cx} ${cy + hw*0.7} C ${cx - hw*0.9} ${cy + hw*0.1}, ${cx - hw*1.1} ${cy - hw*0.6}, ${cx - hw*0.5} ${cy - hw*0.6} Q ${cx} ${cy - hw*0.6} ${cx} ${cy - hw*0.15} Q ${cx} ${cy - hw*0.6} ${cx + hw*0.5} ${cy - hw*0.6} C ${cx + hw*1.1} ${cy - hw*0.6}, ${cx + hw*0.9} ${cy + hw*0.1}, ${cx} ${cy + hw*0.7} Z`;
+      return `<path d="${path}" fill="${color}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>`;
+    }
+    case 'star': {
+      let pts = [];
+      for (let i = 0; i < 10; i++) {
+        const a = i * Math.PI / 5 - Math.PI/2;
+        const rr = i % 2 === 0 ? hw : hw * 0.4;
+        pts.push([cx + Math.cos(a)*rr + (r()-0.5)*2, cy + Math.sin(a)*rr + (r()-0.5)*2]);
+      }
+      const path = 'M ' + pts.map(p => p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L ') + ' Z';
+      return `<path d="${path}" fill="${color}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>`;
+    }
+    case 'fire': {
+      const path = `M ${cx} ${cy + hw*0.8} Q ${cx - hw*0.5} ${cy + hw*0.3} ${cx - hw*0.5} ${cy - hw*0.2} Q ${cx - hw*0.4} ${cy - hw*0.65} ${cx - hw*0.1} ${cy - hw*0.45} Q ${cx - hw*0.2} ${cy - hw*0.85} ${cx + hw*0.1} ${cy - hw*0.9} Q ${cx + hw*0.45} ${cy - hw*0.5} ${cx + hw*0.5} ${cy - hw*0.15} Q ${cx + hw*0.55} ${cy + hw*0.4} ${cx} ${cy + hw*0.8} Z`;
+      return `<path d="${path}" fill="${color}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>` +
+        `<path d="M ${cx} ${cy + hw*0.5} Q ${cx - hw*0.15} ${cy + hw*0.2} ${cx} ${cy - hw*0.1} Q ${cx + hw*0.18} ${cy + hw*0.2} ${cx} ${cy + hw*0.5} Z" fill="${stroke}" opacity="0.2"/>`;
+    }
+    case 'sparkle': {
+      const drawSpark = (sx, sy, sz) => {
+        return `<path d="M ${sx} ${sy-sz} L ${sx+sz*0.3} ${sy-sz*0.3} L ${sx+sz} ${sy} L ${sx+sz*0.3} ${sy+sz*0.3} L ${sx} ${sy+sz} L ${sx-sz*0.3} ${sy+sz*0.3} L ${sx-sz} ${sy} L ${sx-sz*0.3} ${sy-sz*0.3} Z" fill="${color}" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"/>`;
+      };
+      return drawSpark(cx, cy, hw*0.8) + drawSpark(cx + hw*0.7, cy - hw*0.5, hw*0.3) + drawSpark(cx - hw*0.6, cy + hw*0.5, hw*0.25);
+    }
+    case 'rocket': {
+      // body
+      const body = `M ${cx-hw*0.18} ${cy+hw*0.4} L ${cx-hw*0.18} ${cy-hw*0.3} Q ${cx} ${cy-hw*0.85} ${cx+hw*0.18} ${cy-hw*0.3} L ${cx+hw*0.18} ${cy+hw*0.4} Z`;
+      // fins
+      const finL = `M ${cx-hw*0.18} ${cy+hw*0.2} L ${cx-hw*0.45} ${cy+hw*0.55} L ${cx-hw*0.18} ${cy+hw*0.4} Z`;
+      const finR = `M ${cx+hw*0.18} ${cy+hw*0.2} L ${cx+hw*0.45} ${cy+hw*0.55} L ${cx+hw*0.18} ${cy+hw*0.4} Z`;
+      // window
+      const win = `<path d="${meshy.wobblyCircle(cx, cy-hw*0.2, hw*0.13, 0.8, r)}" fill="#A8DDFF" stroke="${stroke}" stroke-width="2"/>`;
+      // flame
+      const flame = `M ${cx-hw*0.12} ${cy+hw*0.4} Q ${cx-hw*0.18} ${cy+hw*0.65} ${cx} ${cy+hw*0.85} Q ${cx+hw*0.18} ${cy+hw*0.65} ${cx+hw*0.12} ${cy+hw*0.4} Z`;
+      return `<path d="${flame}" fill="#FF7A4D" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"/>` +
+             `<path d="${finL}" fill="${color}" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>` +
+             `<path d="${finR}" fill="${color}" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>` +
+             `<path d="${body}" fill="#fff" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>` +
+             win;
+    }
+    case 'lightning': {
+      const path = `M ${cx-hw*0.1} ${cy-hw*0.8} L ${cx+hw*0.35} ${cy-hw*0.8} L ${cx-hw*0.05} ${cy-hw*0.1} L ${cx+hw*0.25} ${cy-hw*0.1} L ${cx-hw*0.25} ${cy+hw*0.8} L ${cx+hw*0.05} ${cy+hw*0.05} L ${cx-hw*0.35} ${cy+hw*0.05} Z`;
+      return `<path d="${path}" fill="${color}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>`;
+    }
+    case 'party': {
+      // party popper: triangle cone + confetti
+      const cone = `M ${cx-hw*0.6} ${cy+hw*0.5} L ${cx-hw*0.1} ${cy} L ${cx+hw*0.6} ${cy+hw*0.6} Z`;
+      let confetti = '';
+      const colors = ['#FF6B9D','#FFD93D','#6BCFFF','#A8E6CF','#FF7A4D'];
+      for (let i = 0; i < 12; i++) {
+        const cx2 = cx + (r()-0.5)*hw*1.6;
+        const cy2 = cy - hw*0.4 + r()*hw*0.8;
+        const c = colors[i % colors.length];
+        confetti += `<rect x="${cx2}" y="${cy2}" width="${5+r()*4}" height="${5+r()*4}" fill="${c}" transform="rotate(${(r()-0.5)*60} ${cx2+3} ${cy2+3})"/>`;
+      }
+      return confetti + `<path d="${cone}" fill="${color}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>`;
+    }
+    case 'crown': {
+      const path = `M ${cx-hw*0.6} ${cy+hw*0.4} L ${cx-hw*0.6} ${cy-hw*0.2} L ${cx-hw*0.3} ${cy+hw*0.1} L ${cx} ${cy-hw*0.5} L ${cx+hw*0.3} ${cy+hw*0.1} L ${cx+hw*0.6} ${cy-hw*0.2} L ${cx+hw*0.6} ${cy+hw*0.4} Z`;
+      return `<path d="${path}" fill="${color}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>` +
+        `<rect x="${cx-hw*0.6}" y="${cy+hw*0.35}" width="${hw*1.2}" height="${hw*0.15}" fill="${stroke}" opacity="0.2"/>`;
+    }
+    case 'gem': {
+      const path = `M ${cx-hw*0.5} ${cy-hw*0.25} L ${cx-hw*0.3} ${cy-hw*0.55} L ${cx+hw*0.3} ${cy-hw*0.55} L ${cx+hw*0.5} ${cy-hw*0.25} L ${cx} ${cy+hw*0.7} Z`;
+      return `<path d="${path}" fill="${color}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>` +
+        `<path d="M ${cx-hw*0.5} ${cy-hw*0.25} L ${cx+hw*0.5} ${cy-hw*0.25} M ${cx-hw*0.3} ${cy-hw*0.55} L ${cx-hw*0.2} ${cy-hw*0.25} L ${cx} ${cy+hw*0.7} M ${cx+hw*0.3} ${cy-hw*0.55} L ${cx+hw*0.2} ${cy-hw*0.25}" stroke="${stroke}" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.6"/>`;
+    }
+    case 'thumbsup': {
+      const path = `M ${cx-hw*0.4} ${cy+hw*0.6} L ${cx-hw*0.4} ${cy-hw*0.05} L ${cx-hw*0.15} ${cy-hw*0.05} Q ${cx-hw*0.15} ${cy-hw*0.55} ${cx+hw*0.05} ${cy-hw*0.7} Q ${cx+hw*0.25} ${cy-hw*0.55} ${cx+hw*0.2} ${cy-hw*0.15} L ${cx+hw*0.5} ${cy-hw*0.05} Q ${cx+hw*0.55} ${cy+hw*0.5} ${cx+hw*0.3} ${cy+hw*0.6} Z`;
+      return `<path d="${path}" fill="${color}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>`;
+    }
+    case 'eyes': {
+      return `<path d="${meshy.wobblyCircle(cx-hw*0.3, cy, hw*0.3, 1.2, r)}" fill="#fff" stroke="${stroke}" stroke-width="3"/>` +
+        `<path d="${meshy.wobblyCircle(cx+hw*0.3, cy, hw*0.3, 1.2, r)}" fill="#fff" stroke="${stroke}" stroke-width="3"/>` +
+        `<circle cx="${cx-hw*0.3}" cy="${cy}" r="${hw*0.12}" fill="${stroke}"/>` +
+        `<circle cx="${cx+hw*0.3}" cy="${cy}" r="${hw*0.12}" fill="${stroke}"/>`;
+    }
+    case 'check': {
+      return `<path d="M ${cx-hw*0.5} ${cy} L ${cx-hw*0.1} ${cy+hw*0.4} L ${cx+hw*0.6} ${cy-hw*0.4}" stroke="${color}" stroke-width="${Math.max(8, size*0.06)}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+    case 'x': {
+      return `<path d="M ${cx-hw*0.5} ${cy-hw*0.5} L ${cx+hw*0.5} ${cy+hw*0.5} M ${cx+hw*0.5} ${cy-hw*0.5} L ${cx-hw*0.5} ${cy+hw*0.5}" stroke="${color}" stroke-width="${Math.max(8, size*0.06)}" fill="none" stroke-linecap="round"/>`;
+    }
+  }
+  return '';
+}
+
+const EMOJIS = [
+  { id: 'smile', name: 'Smile', defaultColor: '#FFD93D' },
+  { id: 'heart', name: 'Heart', defaultColor: '#FF6B6B' },
+  { id: 'star', name: 'Star', defaultColor: '#FFC940' },
+  { id: 'fire', name: 'Fire', defaultColor: '#FF7A4D' },
+  { id: 'sparkle', name: 'Sparkle', defaultColor: '#A8E6FF' },
+  { id: 'rocket', name: 'Rocket', defaultColor: '#FF5C5C' },
+  { id: 'lightning', name: 'Lightning', defaultColor: '#FFD93D' },
+  { id: 'party', name: 'Party', defaultColor: '#FF6B9D' },
+  { id: 'crown', name: 'Crown', defaultColor: '#FFC940' },
+  { id: 'gem', name: 'Gem', defaultColor: '#6BCFFF' },
+  { id: 'thumbsup', name: 'Thumbs up', defaultColor: '#FFD8A8' },
+  { id: 'eyes', name: 'Eyes', defaultColor: '#ffffff' },
+  { id: 'check', name: 'Check', defaultColor: '#2EBD8A' },
+  { id: 'x', name: 'X', defaultColor: '#E04848' },
+];
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Emojis')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Pick emoji <span class="count">${EMOJIS.length}</span></div>
+      <div class="emoji-grid" id="emojiGrid"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Paper</div>
+      <div class="chips" id="paperChips">
+        <div class="chip" data-p="white">White</div>
+        <div class="chip active" data-p="cream">Cream</div>
+        <div class="chip" data-p="grid">Grid</div>
+        <div class="chip" data-p="dark">Dark</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Style</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Fill color</div>
+      <input type="color" id="color" value="${state.color}">
+      <div class="sec-title" style="margin-top:14px">Stroke color</div>
+      <input type="color" id="stroke" value="${state.stroke}">
+    </div>
+    <div class="sec">
+      <div class="row"><label>Size</label><span class="val" id="sizeVal">240px</span></div>
+      <input type="range" id="size" min="80" max="400" value="240">
+    </div>
+  </div>
+`;
+
+function renderEmojiGrid() {
+  const wrap = document.getElementById('emojiGrid'); wrap.innerHTML = '';
+  EMOJIS.forEach(e => {
+    const el = document.createElement('div');
+    el.className = 'emoji-pick' + (e.id === state.emoji ? ' active' : '');
+    const r = meshy.seededRand(7);
+    el.innerHTML = `<svg viewBox="0 0 100 100">${drawEmoji(e.id, 50, 50, 80, e.defaultColor, '#0a0a0a', r)}</svg>`;
+    el.title = e.name;
+    el.addEventListener('click', () => {
+      state.emoji = e.id;
+      state.color = e.defaultColor;
+      document.getElementById('color').value = state.color;
+      renderEmojiGrid(); render();
+    });
+    wrap.appendChild(el);
+  });
+}
+
+function buildSvg() {
+  const W = state.size + 80, H = state.size + 80;
+  const r = meshy.seededRand(state.seed);
+  let svg = `<rect width="${W}" height="${H}" fill="${PAPER[state.paper]}"/>`;
+  if (state.paper === 'grid') {
+    for (let i = 0; i < W; i += 25) svg += `<line x1="${i}" y1="0" x2="${i}" y2="${H}" stroke="rgba(70,140,200,.18)"/>`;
+    for (let j = 0; j < H; j += 25) svg += `<line x1="0" y1="${j}" x2="${W}" y2="${j}" stroke="rgba(70,140,200,.18)"/>`;
+  }
+  svg += drawEmoji(state.emoji, W/2, H/2, state.size, state.color, state.stroke, r);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${svg}</svg>`;
+}
+
+function render() {
+  document.getElementById('canvasWrap').style.background = PAPER[state.paper];
+  document.getElementById('outSvg').outerHTML = buildSvg().replace('<svg ', '<svg id="outSvg" ');
+}
+
+document.getElementById('color').addEventListener('input', e => { state.color = e.target.value; render(); });
+document.getElementById('stroke').addEventListener('input', e => { state.stroke = e.target.value; render(); });
+document.getElementById('size').addEventListener('input', e => { state.size = +e.target.value; document.getElementById('sizeVal').textContent = state.size+'px'; render(); });
+document.getElementById('paperChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#paperChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); state.paper = c.dataset.p; render();
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); render(); });
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(buildSvg(), 'SVG copied'));
+document.getElementById('pngBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const W = state.size + 80;
+    const c = document.createElement('canvas'); c.width = W*3; c.height = W*3;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.download = `emoji-${state.emoji}.png`; link.href = c.toDataURL('image/png'); link.click();
+  };
+  img.src = url;
+});
+
+renderEmojiGrid(); render();
+</script>
+</body>
+</html>

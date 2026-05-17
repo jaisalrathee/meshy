@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Blurry Gradients · meshy.fun</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A dreamy blur.</div>
+      <button class="btn" id="newSeedBtn">New variation</button>
+      <button class="btn" id="copyBtn">Copy CSS</button>
+      <button class="btn primary" id="downloadBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><div id="outStage"></div></div>
+    <div class="canvas-bottom">
+      <div class="output-wrap"><pre class="output" id="cssOut"></pre><button class="copy-btn" id="copyBtn2">Copy</button></div>
+    </div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { padding: 0; }
+  #outStage { width: 100%; height: 100%; position: relative; overflow: hidden; border-radius: 12px; }
+  .blob { position: absolute; border-radius: 50%; mix-blend-mode: screen; opacity: .85; will-change: transform; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const PALETTES = {
+  iris: ['#667EEA','#764BA2','#F093FB','#F5576C','#4FACFE'],
+  sunset: ['#FF6B6B','#FFA07A','#FFD56B','#FF8E72','#FF5E78'],
+  ocean: ['#A1C4FD','#C2E9FB','#E0C3FC','#8EC5FC','#B5FFFC'],
+  peach: ['#FFB199','#FF8FA3','#FFC8A2','#FFD6A5','#FF9A8B'],
+  midnight: ['#0F2027','#203A43','#2C5364','#1F1C2C','#928DAB'],
+  mint: ['#D4FC79','#96E6A1','#C2E9FB','#A1FFCE','#FAFFD1'],
+  pastel: ['#FFDEE9','#B5FFFC','#E0C3FC','#FBC2EB','#A6C1EE'],
+  cyber: ['#FF0080','#7928CA','#FF4D4D','#F9CB28','#0070F3'],
+};
+
+const state = { palette: 'iris', blur: 100, blobs: 5, opacity: 85, animate: false, seed: 3, baseColor: 'auto' };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Blurry')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Palette</div>
+      <div class="chips" id="palChips">
+        ${Object.keys(PALETTES).map(k => `<div class="chip ${k==='iris'?'active':''}" data-p="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Animation</div>
+      <div class="chips"><div class="chip" id="animateChip">Drift</div></div>
+    </div>
+  </div>
+  ${meshy.hintHtml('Toggle <strong>Drift</strong> for slow animation')}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Blur</label><span class="val" id="blurVal">100px</span></div>
+      <input type="range" id="blur" min="20" max="200" value="100">
+      <div class="row" style="margin-top:14px"><label>Blob count</label><span class="val" id="blobsVal">5</span></div>
+      <input type="range" id="blobs" min="2" max="10" value="5">
+      <div class="row" style="margin-top:14px"><label>Opacity</label><span class="val" id="opacityVal">85%</span></div>
+      <input type="range" id="opacity" min="20" max="100" value="85">
+    </div>
+  </div>
+`;
+
+function rand(seed) { return () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }; }
+
+let blobPositions = [];
+function regenerate() {
+  const r = rand(state.seed);
+  const colors = PALETTES[state.palette];
+  blobPositions = [];
+  for (let i = 0; i < state.blobs; i++) {
+    blobPositions.push({
+      x: r() * 100,
+      y: r() * 100,
+      size: 30 + r() * 50, // % of stage
+      color: colors[Math.floor(r() * colors.length)],
+      driftX: (r() - 0.5) * 20,
+      driftY: (r() - 0.5) * 20,
+      phase: r() * Math.PI * 2,
+    });
+  }
+}
+
+function render() {
+  const stage = document.getElementById('outStage');
+  const colors = PALETTES[state.palette];
+  stage.style.background = colors[0];
+  stage.innerHTML = '';
+  blobPositions.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'blob';
+    el.style.background = b.color;
+    el.style.width = b.size + '%';
+    el.style.height = b.size + '%';
+    el.style.left = `calc(${b.x}% - ${b.size/2}%)`;
+    el.style.top = `calc(${b.y}% - ${b.size/2}%)`;
+    el.style.filter = `blur(${state.blur}px)`;
+    el.style.opacity = state.opacity / 100;
+    stage.appendChild(el);
+  });
+  // CSS output
+  const layers = blobPositions.map(b => `radial-gradient(circle at ${b.x.toFixed(0)}% ${b.y.toFixed(0)}%, ${b.color}${Math.round(state.opacity*0.6).toString(16).padStart(2,'0')} 0%, transparent ${(b.size*0.6).toFixed(0)}%)`).join(',\n  ');
+  document.getElementById('cssOut').textContent = `background-color: ${colors[0]};\nbackground-image:\n  ${layers};`;
+}
+
+let animRaf = 0, animStart = 0;
+function animate() {
+  if (!state.animate) return;
+  const t = (performance.now() - animStart) / 1000;
+  const stage = document.getElementById('outStage');
+  [...stage.children].forEach((el, i) => {
+    const b = blobPositions[i];
+    if (!b) return;
+    const dx = Math.sin(t * 0.3 + b.phase) * b.driftX;
+    const dy = Math.cos(t * 0.25 + b.phase) * b.driftY;
+    el.style.transform = `translate(${dx}%, ${dy}%)`;
+  });
+  animRaf = requestAnimationFrame(animate);
+}
+
+function startAnimate() {
+  if (animRaf) return;
+  animStart = performance.now();
+  animate();
+}
+function stopAnimate() {
+  if (animRaf) cancelAnimationFrame(animRaf);
+  animRaf = 0;
+  [...document.getElementById('outStage').children].forEach(el => el.style.transform = '');
+}
+
+function bindRange(id,key,suffix='') {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = +e.target.value;
+    document.getElementById(id+'Val').textContent = state[key]+suffix;
+    if (key === 'blobs') regenerate();
+    render();
+  });
+}
+bindRange('blur','blur','px'); bindRange('blobs','blobs'); bindRange('opacity','opacity','%');
+
+document.getElementById('palChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#palChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); state.palette = c.dataset.p; regenerate(); render();
+});
+document.getElementById('animateChip').addEventListener('click', e => {
+  state.animate = !state.animate;
+  e.target.classList.toggle('active', state.animate);
+  if (state.animate) startAnimate(); else stopAnimate();
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); regenerate(); render(); });
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(document.getElementById('cssOut').textContent, 'CSS copied'));
+document.getElementById('copyBtn2').addEventListener('click', () => meshy.copy(document.getElementById('cssOut').textContent, 'CSS copied'));
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const stage = document.getElementById('outStage');
+  const rect = stage.getBoundingClientRect();
+  const W = 1920, H = Math.round(W * (rect.height/rect.width));
+  const colors = PALETTES[state.palette];
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = colors[0]; ctx.fillRect(0,0,W,H);
+  blobPositions.forEach(b => {
+    const cx = (b.x/100)*W, cy = (b.y/100)*H, r = (b.size/100) * Math.max(W,H) * 0.6;
+    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0, b.color + Math.round(state.opacity*2.55).toString(16).padStart(2,'0'));
+    g.addColorStop(1, b.color + '00');
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  });
+  ctx.globalCompositeOperation = 'source-over';
+  const link = document.createElement('a'); link.download = 'blurry.png'; link.href = c.toDataURL('image/png'); link.click();
+});
+
+regenerate(); render();
+</script>
+</body>
+</html>

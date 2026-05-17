@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hand Illustrations · meshy.fun</title>
+<meta name="description" content="Hand-drawn scenes — laptop, rocket, growth, celebration. Editable colors." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A little hand-drawn scene.</div>
+      <button class="btn" id="newSeedBtn">New variation</button>
+      <button class="btn" id="copyBtn">Copy SVG</button>
+      <button class="btn primary" id="pngBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 30px; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.08); border-radius: 8px; }
+  .scene-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .scene-pick { aspect-ratio: 1.4/1; border-radius: 10px; background: #fff; cursor: pointer; border: 1.5px solid transparent; padding: 6px; display: flex; align-items: center; justify-content: center; transition: transform .15s; }
+  .scene-pick:hover { transform: translateY(-2px); }
+  .scene-pick.active { border-color: var(--ink); }
+  .scene-pick svg { width: 100%; height: 100%; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const state = { scene: 'launch', primary: '#FF6B6B', secondary: '#FFD93D', tertiary: '#6BCFFF', paper: 'cream', seed: 5, w: 800, h: 600 };
+
+const PAPER = { cream: '#FBF6E9', white: '#ffffff', dark: '#1B1B1F', grid: '#F0E8D8', sky: '#E8F4FF' };
+
+function illuLaunch(W, H, p, s, t, r) {
+  const cx = W/2, cy = H/2;
+  let svg = '';
+  // ground/floor
+  svg += `<path d="${meshy.wobblyLine(W*0.1, H*0.85, W*0.9, H*0.85, 2, r)}" stroke="#0a0a0a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  // sun (top right)
+  svg += `<path d="${meshy.wobblyCircle(W*0.78, H*0.18, 35, 1.5, r)}" fill="${t}" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>`;
+  // rays
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4;
+    const x1 = W*0.78 + Math.cos(a) * 45, y1 = H*0.18 + Math.sin(a) * 45;
+    const x2 = W*0.78 + Math.cos(a) * 62, y2 = H*0.18 + Math.sin(a) * 62;
+    svg += `<path d="${meshy.wobblyLine(x1, y1, x2, y2, 0.8, r)}" stroke="#0a0a0a" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+  }
+  // rocket body
+  const rx = cx, ry = cy;
+  const bodyPath = `M ${rx-30} ${ry+60} L ${rx-30} ${ry-50} Q ${rx} ${ry-110} ${rx+30} ${ry-50} L ${rx+30} ${ry+60} Z`;
+  svg += `<path d="${bodyPath}" fill="#fff" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>`;
+  // window
+  svg += `<path d="${meshy.wobblyCircle(rx, ry-25, 18, 1, r)}" fill="${t}" stroke="#0a0a0a" stroke-width="2.5"/>`;
+  // fins
+  svg += `<path d="M ${rx-30} ${ry+25} L ${rx-65} ${ry+75} L ${rx-30} ${ry+60} Z" fill="${p}" stroke="#0a0a0a" stroke-width="2.5" stroke-linejoin="round"/>`;
+  svg += `<path d="M ${rx+30} ${ry+25} L ${rx+65} ${ry+75} L ${rx+30} ${ry+60} Z" fill="${p}" stroke="#0a0a0a" stroke-width="2.5" stroke-linejoin="round"/>`;
+  // body stripe
+  svg += `<path d="M ${rx-30} ${ry-20} L ${rx+30} ${ry-20} M ${rx-30} ${ry+10} L ${rx+30} ${ry+10}" stroke="#0a0a0a" stroke-width="2" fill="none"/>`;
+  // flames
+  svg += `<path d="M ${rx-20} ${ry+60} Q ${rx-30} ${ry+100} ${rx-10} ${ry+130} Q ${rx} ${ry+110} ${rx+10} ${ry+130} Q ${rx+30} ${ry+100} ${rx+20} ${ry+60} Z" fill="${s}" stroke="#0a0a0a" stroke-width="2.5" stroke-linejoin="round"/>`;
+  svg += `<path d="M ${rx-10} ${ry+85} Q ${rx-12} ${ry+105} ${rx} ${ry+118} Q ${rx+12} ${ry+105} ${rx+10} ${ry+85} Z" fill="${p}" stroke="#0a0a0a" stroke-width="2" stroke-linejoin="round"/>`;
+  // stars
+  for (let i = 0; i < 6; i++) {
+    const x = (i+1) * W/8, y = H*0.15 + (r()-0.5)*40;
+    if (Math.abs(x - W*0.78) < 80) continue;
+    svg += `<path d="M ${x} ${y-8} L ${x+3} ${y-3} L ${x+8} ${y} L ${x+3} ${y+3} L ${x} ${y+8} L ${x-3} ${y+3} L ${x-8} ${y} L ${x-3} ${y-3} Z" fill="${t}" stroke="#0a0a0a" stroke-width="1.5"/>`;
+  }
+  return svg;
+}
+
+function illuLaptop(W, H, p, s, t, r) {
+  const cx = W/2, cy = H/2 + 20;
+  let svg = '';
+  // floor line
+  svg += `<path d="${meshy.wobblyLine(W*0.1, cy+150, W*0.9, cy+150, 2, r)}" stroke="#0a0a0a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  // laptop base
+  svg += `<path d="${meshy.wobblyRoundRect(cx-180, cy+80, 360, 30, 5, 1.5, r)}" fill="#cfcfd6" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>`;
+  // laptop screen
+  svg += `<path d="${meshy.wobblyRoundRect(cx-160, cy-100, 320, 200, 8, 1.5, r)}" fill="#1a1a1f" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>`;
+  // screen content (gradient bars / "code")
+  for (let i = 0; i < 8; i++) {
+    const w = 30 + r()*180;
+    const y = cy - 80 + i*20;
+    svg += `<rect x="${cx-145}" y="${y}" width="${w}" height="8" rx="2" fill="${[p,s,t,'#ffffff','#A0A0A0'][i%5]}" opacity="0.85"/>`;
+  }
+  // big "play" or check sign on screen
+  svg += `<path d="${meshy.wobblyCircle(cx+90, cy-30, 30, 1.2, r)}" fill="${t}" stroke="#fff" stroke-width="2.5"/>`;
+  svg += `<path d="M ${cx+80} ${cy-30} L ${cx+89} ${cy-21} L ${cx+105} ${cy-39}" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // coffee cup on left
+  svg += `<path d="${meshy.wobblyRoundRect(W*0.12, cy+95, 50, 70, 8, 1.2, r)}" fill="${p}" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>`;
+  svg += `<path d="M ${W*0.12+50} ${cy+115} Q ${W*0.12+70} ${cy+115} ${W*0.12+70} ${cy+130} Q ${W*0.12+70} ${cy+145} ${W*0.12+50} ${cy+145}" stroke="#0a0a0a" stroke-width="3" fill="none" stroke-linejoin="round"/>`;
+  // steam
+  for (let i = 0; i < 3; i++) {
+    const sx = W*0.12 + 15 + i*10;
+    svg += `<path d="M ${sx} ${cy+85} Q ${sx-5} ${cy+70} ${sx} ${cy+60} Q ${sx+5} ${cy+50} ${sx} ${cy+40}" stroke="#A0A0A0" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+  }
+  // sparkles around
+  svg += sparkle(W*0.85, cy-90, 12, t);
+  svg += sparkle(W*0.15, cy-40, 8, s);
+  svg += sparkle(W*0.88, cy+50, 10, p);
+  return svg;
+}
+
+function illuGrowth(W, H, p, s, t, r) {
+  const cx = W/2, cy = H/2 + 30;
+  let svg = '';
+  // axes
+  svg += `<path d="${meshy.wobblyLine(W*0.15, H*0.85, W*0.85, H*0.85, 2, r)}" stroke="#0a0a0a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  svg += `<path d="${meshy.wobblyLine(W*0.15, H*0.85, W*0.15, H*0.18, 2, r)}" stroke="#0a0a0a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  // bars growing
+  const heights = [0.15, 0.22, 0.30, 0.42, 0.58, 0.72];
+  const colors = [s,s,s,p,p,p];
+  const barW = (W*0.65) / heights.length;
+  heights.forEach((h, i) => {
+    const x = W*0.18 + i*barW;
+    const y = H*0.85 - H*h;
+    svg += `<path d="${meshy.wobblyRect(x, y, barW*0.7, H*h, 1.5, r)}" fill="${colors[i]}" stroke="#0a0a0a" stroke-width="2.5" stroke-linejoin="round"/>`;
+  });
+  // arrow going up over the bars
+  const lastX = W*0.18 + (heights.length-1)*barW + barW*0.35;
+  const lastY = H*0.85 - H*heights[heights.length-1];
+  svg += `<path d="${meshy.wobblyLine(W*0.18, H*0.85-H*0.13, lastX, lastY-20, 2.5, r)}" stroke="${t}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+  // arrowhead
+  const ang = Math.atan2((lastY-20) - (H*0.85-H*0.13), lastX - W*0.18);
+  svg += `<path d="M ${lastX} ${lastY-20} L ${lastX + Math.cos(ang+2.6)*22} ${lastY-20 + Math.sin(ang+2.6)*22} M ${lastX} ${lastY-20} L ${lastX + Math.cos(ang-2.6)*22} ${lastY-20 + Math.sin(ang-2.6)*22}" stroke="${t}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+  // "$" annotation
+  svg += `<text x="${lastX + 40}" y="${lastY - 30}" font-family="'Caveat',cursive" font-size="42" font-weight="700" fill="${p}">$$$</text>`;
+  // sparkles
+  svg += sparkle(W*0.2, H*0.25, 10, t);
+  svg += sparkle(W*0.8, H*0.3, 14, t);
+  return svg;
+}
+
+function illuParty(W, H, p, s, t, r) {
+  let svg = '';
+  // confetti
+  const colors = [p, s, t, '#FF6B9D', '#6BCFFF', '#A8E6CF', '#FFD93D'];
+  for (let i = 0; i < 60; i++) {
+    const x = r()*W, y = r()*H*0.7;
+    const c = colors[i % colors.length];
+    const sh = i % 3;
+    if (sh === 0) svg += `<rect x="${x}" y="${y}" width="10" height="14" fill="${c}" stroke="#0a0a0a" stroke-width="1.2" transform="rotate(${r()*360} ${x+5} ${y+7})"/>`;
+    else if (sh === 1) svg += `<path d="${meshy.wobblyCircle(x, y, 5, 0.6, r)}" fill="${c}" stroke="#0a0a0a" stroke-width="1.2"/>`;
+    else svg += `<path d="M ${x} ${y-6} L ${x+5} ${y+5} L ${x-5} ${y+5} Z" fill="${c}" stroke="#0a0a0a" stroke-width="1.2"/>`;
+  }
+  // central "Yay!" text + balloon
+  svg += `<text x="${W/2}" y="${H*0.55}" text-anchor="middle" font-family="'Caveat', cursive" font-size="120" font-weight="700" fill="${p}">${'Yay!'}</text>`;
+  // balloons left/right
+  const drawBalloon = (cx, cy, color) => {
+    let s = `<path d="${meshy.wobblyCircle(cx, cy, 35, 1.5, r)}" fill="${color}" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>`;
+    s += `<path d="M ${cx-5} ${cy+33} L ${cx} ${cy+45} L ${cx+5} ${cy+33} Z" fill="${color}" stroke="#0a0a0a" stroke-width="2"/>`;
+    s += `<path d="M ${cx} ${cy+45} Q ${cx-15} ${cy+90} ${cx+10} ${cy+140} Q ${cx-15} ${cy+170} ${cx+5} ${cy+200}" stroke="#0a0a0a" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+    return s;
+  };
+  svg += drawBalloon(W*0.18, H*0.3, s);
+  svg += drawBalloon(W*0.82, H*0.28, t);
+  return svg;
+}
+
+function illuChat(W, H, p, s, t, r) {
+  let svg = '';
+  // chat bubble 1
+  svg += `<path d="${meshy.wobblyRoundRect(W*0.1, H*0.2, W*0.4, H*0.2, 16, 1.5, r)}" fill="${p}" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>`;
+  svg += `<path d="M ${W*0.18} ${H*0.4} L ${W*0.13} ${H*0.5} L ${W*0.25} ${H*0.4}" fill="${p}" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>`;
+  svg += `<text x="${W*0.3}" y="${H*0.34}" text-anchor="middle" font-family="'Caveat',cursive" font-size="36" font-weight="600" fill="#fff">Just shipped!</text>`;
+  // chat bubble 2
+  svg += `<path d="${meshy.wobblyRoundRect(W*0.5, H*0.5, W*0.4, H*0.2, 16, 1.5, r)}" fill="${t}" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>`;
+  svg += `<path d="M ${W*0.82} ${H*0.7} L ${W*0.87} ${H*0.8} L ${W*0.75} ${H*0.7}" fill="${t}" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>`;
+  svg += `<text x="${W*0.7}" y="${H*0.64}" text-anchor="middle" font-family="'Caveat',cursive" font-size="36" font-weight="600" fill="#0a0a0a">Congrats! 🎉</text>`;
+  // hearts
+  svg += `<text x="${W*0.85}" y="${H*0.25}" font-family="'Caveat',cursive" font-size="34" fill="${s}">♥</text>`;
+  svg += `<text x="${W*0.12}" y="${H*0.85}" font-family="'Caveat',cursive" font-size="28" fill="${s}">★</text>`;
+  return svg;
+}
+
+function illuPlant(W, H, p, s, t, r) {
+  const cx = W/2, cy = H*0.85;
+  let svg = '';
+  // pot
+  svg += `<path d="M ${cx-90} ${cy-80} L ${cx-75} ${cy} L ${cx+75} ${cy} L ${cx+90} ${cy-80} Z" fill="${p}" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>`;
+  svg += `<rect x="${cx-100}" y="${cy-90}" width="200" height="15" rx="3" fill="${p}" stroke="#0a0a0a" stroke-width="3"/>`;
+  // dirt
+  svg += `<path d="M ${cx-92} ${cy-78} L ${cx+92} ${cy-78} L ${cx+80} ${cy-65} L ${cx-80} ${cy-65} Z" fill="#3D2817"/>`;
+  // stem
+  svg += `<path d="${meshy.wobblyLine(cx, cy-80, cx-10, H*0.4, 2, r)}" stroke="#3A7B3A" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+  // leaves
+  const leaf = (x, y, side, color) => {
+    const dx = side*60;
+    return `<path d="M ${x} ${y} Q ${x+dx*0.3} ${y-25} ${x+dx} ${y-15} Q ${x+dx*0.7} ${y+8} ${x} ${y} Z" fill="${color}" stroke="#0a0a0a" stroke-width="2.5" stroke-linejoin="round"/>`;
+  };
+  svg += leaf(cx-5, H*0.45, -1, s);
+  svg += leaf(cx-8, H*0.55, 1, s);
+  svg += leaf(cx-10, H*0.65, -1, s);
+  // big flower at top
+  svg += `<path d="${meshy.wobblyCircle(cx-10, H*0.4, 30, 1.5, r)}" fill="${t}" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>`;
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI/3;
+    const px = cx - 10 + Math.cos(a) * 35, py = H*0.4 + Math.sin(a) * 35;
+    svg += `<path d="${meshy.wobblyCircle(px, py, 18, 1, r)}" fill="${p}" stroke="#0a0a0a" stroke-width="2.5"/>`;
+  }
+  svg += `<path d="${meshy.wobblyCircle(cx-10, H*0.4, 14, 1, r)}" fill="${t}" stroke="#0a0a0a" stroke-width="2"/>`;
+  return svg;
+}
+
+function sparkle(cx, cy, sz, color) {
+  return `<path d="M ${cx} ${cy-sz} L ${cx+sz*0.3} ${cy-sz*0.3} L ${cx+sz} ${cy} L ${cx+sz*0.3} ${cy+sz*0.3} L ${cx} ${cy+sz} L ${cx-sz*0.3} ${cy+sz*0.3} L ${cx-sz} ${cy} L ${cx-sz*0.3} ${cy-sz*0.3} Z" fill="${color}" stroke="#0a0a0a" stroke-width="2" stroke-linejoin="round"/>`;
+}
+
+const SCENES = {
+  launch:  { name: 'Rocket launch', fn: illuLaunch },
+  laptop:  { name: 'Laptop', fn: illuLaptop },
+  growth:  { name: 'Growth chart', fn: illuGrowth },
+  party:   { name: 'Celebration', fn: illuParty },
+  chat:    { name: 'Chat bubbles', fn: illuChat },
+  plant:   { name: 'Plant pot', fn: illuPlant },
+};
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Illus')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Scene <span class="count">${Object.keys(SCENES).length}</span></div>
+      <div class="scene-grid" id="sceneGrid"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Paper</div>
+      <div class="chips" id="paperChips">
+        <div class="chip" data-p="white">White</div>
+        <div class="chip active" data-p="cream">Cream</div>
+        <div class="chip" data-p="sky">Sky</div>
+        <div class="chip" data-p="grid">Grid</div>
+        <div class="chip" data-p="dark">Dark</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Colors</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Primary</label></div>
+      <input type="color" id="primary" value="${state.primary}">
+      <div class="row" style="margin-top:12px"><label>Secondary</label></div>
+      <input type="color" id="secondary" value="${state.secondary}">
+      <div class="row" style="margin-top:12px"><label>Tertiary</label></div>
+      <input type="color" id="tertiary" value="${state.tertiary}">
+    </div>
+  </div>
+`;
+
+function renderSceneGrid() {
+  const wrap = document.getElementById('sceneGrid'); wrap.innerHTML = '';
+  Object.entries(SCENES).forEach(([key, s]) => {
+    const el = document.createElement('div');
+    el.className = 'scene-pick' + (key === state.scene ? ' active' : '');
+    const r = meshy.seededRand(7);
+    el.innerHTML = `<svg viewBox="0 0 ${state.w} ${state.h}">${s.fn(state.w, state.h, state.primary, state.secondary, state.tertiary, r)}</svg>`;
+    el.title = s.name;
+    el.addEventListener('click', () => { state.scene = key; renderSceneGrid(); render(); });
+    wrap.appendChild(el);
+  });
+}
+
+function buildSvg() {
+  const r = meshy.seededRand(state.seed);
+  const W = state.w, H = state.h;
+  let svg = `<rect width="${W}" height="${H}" fill="${PAPER[state.paper]}"/>`;
+  if (state.paper === 'grid') {
+    for (let i = 0; i < W; i += 25) svg += `<line x1="${i}" y1="0" x2="${i}" y2="${H}" stroke="rgba(70,140,200,.18)"/>`;
+    for (let j = 0; j < H; j += 25) svg += `<line x1="0" y1="${j}" x2="${W}" y2="${j}" stroke="rgba(70,140,200,.18)"/>`;
+  }
+  svg += SCENES[state.scene].fn(W, H, state.primary, state.secondary, state.tertiary, r);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${svg}</svg>`;
+}
+
+function render() {
+  document.getElementById('canvasWrap').style.background = PAPER[state.paper];
+  document.getElementById('outSvg').outerHTML = buildSvg().replace('<svg ', '<svg id="outSvg" ');
+}
+
+['primary','secondary','tertiary'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => { state[id] = e.target.value; renderSceneGrid(); render(); });
+});
+document.getElementById('paperChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#paperChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); state.paper = c.dataset.p; render();
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); render(); });
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(buildSvg(), 'SVG copied'));
+document.getElementById('pngBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = state.w*2; c.height = state.h*2;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.download = `illus-${state.scene}.png`; link.href = c.toDataURL('image/png'); link.click();
+  };
+  img.src = url;
+});
+
+renderSceneGrid(); render();
+</script>
+</body>
+</html>

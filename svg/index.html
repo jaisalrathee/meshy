@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SVG Optimizer · meshy.fun</title>
+<meta name="description" content="Paste SVG, get optimized output." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">Smaller, cleaner.</div>
+      <div id="stats" style="font-size:12px;color:var(--ink-2);margin-right:auto;margin-left:14px;font-family:'SF Mono',monospace"></div>
+      <button class="btn" id="downloadBtn">Download SVG</button>
+      <button class="btn primary" id="copyBtn">Copy optimized</button>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="editor-grid">
+        <div class="ed">
+          <div class="ed-label">Paste SVG</div>
+          <textarea id="input" placeholder="Paste your SVG here..."></textarea>
+          <div class="ed-preview" id="pvIn"></div>
+        </div>
+        <div class="ed">
+          <div class="ed-label">Optimized</div>
+          <textarea id="output" readonly></textarea>
+          <div class="ed-preview" id="pvOut"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .canvas { padding: 0; }
+  .editor-grid { display: grid; grid-template-columns: 1fr 1fr; height: 100%; gap: 1px; background: var(--line); }
+  .ed { background: #fff; display: flex; flex-direction: column; min-width: 0; }
+  .ed-label { padding: 12px 18px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); font-weight: 600; border-bottom: 1px solid var(--line-2); }
+  .ed textarea { flex: 1; border: none; border-radius: 0; padding: 14px 18px; resize: none; min-height: 0; font-size: 11.5px; }
+  .ed textarea:focus { outline: none; }
+  .ed-preview { border-top: 1px solid var(--line); padding: 18px; background: #fafafa; height: 140px; display: flex; align-items: center; justify-content: center; }
+  .ed-preview svg { max-width: 100%; max-height: 100%; }
+  @media (max-width: 800px) { .editor-grid { grid-template-columns: 1fr; } }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const EXAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generator: Example -->
+<svg xmlns="http://www.w3.org/2000/svg" width="100.123456" height="100.123456" viewBox="0 0 100 100">
+  <metadata>Title</metadata>
+  <g id="layer1" stroke="" fill="#3b82f6">
+    <circle cx="50.1234" cy="50.5678" r="40.999" />
+  </g>
+</svg>`;
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('SVG')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Options</div>
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="optComments" checked> Remove comments</label>
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="optMetadata" checked> Strip metadata</label>
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="optWhitespace" checked> Collapse whitespace</label>
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="optEmptyAttr" checked> Remove empty attributes</label>
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="optRound" checked> Round numbers</label>
+      <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="optXmlns"> Remove xmlns</label>
+    </div>
+    <div class="sec">
+      <div class="row"><label>Precision</label><span class="val" id="precVal">3</span></div>
+      <input type="range" id="prec" min="0" max="6" value="3">
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Stats</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Original</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:32px;font-style:italic"><span id="origSize">0</span> <span style="font-size:14px;color:var(--ink-3)">bytes</span></div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Optimized</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:32px;font-style:italic"><span id="optSize">0</span> <span style="font-size:14px;color:var(--ink-3)">bytes</span></div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Saved</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:48px;font-style:italic;color:#22c55e" id="saved">0%</div>
+      </div>
+    </div>
+  </div>
+`;
+
+document.getElementById('input').value = EXAMPLE;
+
+function optimize(src) {
+  let s = src;
+  if (document.getElementById('optComments').checked) {
+    s = s.replace(/<!--[\s\S]*?-->/g, '').replace(/<\?xml[^>]*\?>/g, '');
+  }
+  if (document.getElementById('optMetadata').checked) {
+    s = s.replace(/<metadata[\s\S]*?<\/metadata>/g, '');
+    s = s.replace(/<title[\s\S]*?<\/title>/g, '');
+    s = s.replace(/<desc[\s\S]*?<\/desc>/g, '');
+  }
+  if (document.getElementById('optEmptyAttr').checked) s = s.replace(/\s+\w+="\s*"/g, '');
+  if (document.getElementById('optRound').checked) {
+    const prec = +document.getElementById('prec').value;
+    s = s.replace(/-?\d+\.\d+/g, m => parseFloat(parseFloat(m).toFixed(prec)).toString());
+  }
+  if (document.getElementById('optXmlns').checked) s = s.replace(/\s+xmlns="[^"]*"/g, '');
+  if (document.getElementById('optWhitespace').checked) {
+    s = s.replace(/>\s+</g, '><').replace(/\s{2,}/g, ' ').trim();
+  }
+  s = s.replace(/<g[^>]*><\/g>/g, '');
+  return s;
+}
+
+function render() {
+  const src = document.getElementById('input').value;
+  const opt = optimize(src);
+  document.getElementById('output').value = opt;
+  document.getElementById('pvIn').innerHTML = src;
+  document.getElementById('pvOut').innerHTML = opt;
+  const o = new Blob([src]).size, n = new Blob([opt]).size;
+  document.getElementById('origSize').textContent = o;
+  document.getElementById('optSize').textContent = n;
+  const saved = o ? Math.round((1-n/o)*100) : 0;
+  document.getElementById('saved').textContent = saved+'%';
+  document.getElementById('stats').textContent = `${o} → ${n} bytes · saved ${saved}%`;
+}
+
+document.getElementById('input').addEventListener('input', render);
+document.querySelectorAll('.sidebar input[type=checkbox], #prec').forEach(c => c.addEventListener('change', render));
+document.getElementById('prec').addEventListener('input', e => {
+  document.getElementById('precVal').textContent = e.target.value;
+  render();
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(document.getElementById('output').value, 'Optimized SVG copied'));
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const blob = new Blob([document.getElementById('output').value], { type: 'image/svg+xml' });
+  const link = document.createElement('a');
+  link.download = 'optimized.svg'; link.href = URL.createObjectURL(blob); link.click();
+});
+
+render();
+</script>
+</body>
+</html>

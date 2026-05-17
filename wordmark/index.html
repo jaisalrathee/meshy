@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wordmark Generator · meshy.fun</title>
+<meta name="description" content="Type a name, pick a treatment, get a polished SVG wordmark." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@400;500;600;700&family=Fraunces:wght@400;500;700;900&family=Playfair+Display:wght@400;700;900&family=DM+Serif+Display&family=Outfit:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A name, set in stone.</div>
+      <button class="btn" id="surpriseBtn" title="Generate something completely new">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.91 5.66 5.59.81L15 13.75 16.36 19 12 16.23 7.64 19 9 13.75 4.5 9.47l5.59-.81z"/></svg>
+        Surprise me
+      </button>
+      <button class="btn" id="svgBtn">Download SVG</button>
+      <button class="btn primary" id="pngBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="wm-stage" id="stage"></div>
+    </div>
+    <div class="canvas-bottom">
+      <div class="output-wrap">
+        <pre class="output" id="cssOut"></pre>
+        <button class="copy-btn" id="copyBtn">Copy</button>
+      </div>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 60px; overflow: hidden; }
+  .wm-stage { max-width: 100%; }
+  .wm-stage svg { display: block; max-width: 100%; height: auto; }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const FONTS = [
+  { name: 'Inter', stack: "Inter, sans-serif", weight: 700 },
+  { name: 'Instrument Serif', stack: "'Instrument Serif', serif", weight: 400, italic: true },
+  { name: 'Playfair Display', stack: "'Playfair Display', serif", weight: 700 },
+  { name: 'DM Serif Display', stack: "'DM Serif Display', serif", weight: 400 },
+  { name: 'Fraunces', stack: "Fraunces, serif", weight: 700 },
+  { name: 'Space Grotesk', stack: "'Space Grotesk', sans-serif", weight: 700 },
+  { name: 'Manrope', stack: "Manrope, sans-serif", weight: 700 },
+  { name: 'Outfit', stack: "Outfit, sans-serif", weight: 800 },
+  { name: 'JetBrains Mono', stack: "'JetBrains Mono', monospace", weight: 700 },
+];
+
+const TREATMENTS = [
+  { id: 'plain', name: 'Plain' },
+  { id: 'period', name: 'Period' },
+  { id: 'underline', name: 'Underline' },
+  { id: 'dot', name: 'Color dot' },
+  { id: 'bracket', name: 'Brackets' },
+  { id: 'slash', name: 'Slash' },
+  { id: 'arrow', name: 'Arrow' },
+  { id: 'highlight', name: 'Highlight' },
+];
+
+const COLOR_STYLES = ['solid', 'gradient', 'split', 'mesh'];
+
+// Same curated palettes as the Mesh tool
+const PALETTES = [
+  { name: 'Peach Sorbet', theme: 'Warm', colors: ['#FFB199','#FF8FA3','#FFC8A2','#FFD6A5','#FF9A8B'] },
+  { name: 'Sunset Riot', theme: 'Warm', colors: ['#FF6B6B','#FFA07A','#FFD56B','#FF8E72','#FF5E78'] },
+  { name: 'Mango Tango', theme: 'Warm', colors: ['#FF8008','#FFC837','#FF512F','#F09819','#FFB347'] },
+  { name: 'Iris Bloom', theme: 'Vibrant', colors: ['#667EEA','#764BA2','#F093FB','#F5576C','#4FACFE'] },
+  { name: 'Twilight', theme: 'Cool', colors: ['#4568DC','#B06AB3','#6A82FB','#FC5C7D','#5D26C1'] },
+  { name: 'Deep Sea', theme: 'Cool', colors: ['#1E3C72','#2A5298','#5B86E5','#36D1DC','#0F2027'] },
+  { name: 'Arctic Mist', theme: 'Cool', colors: ['#A1C4FD','#C2E9FB','#E0C3FC','#8EC5FC','#B5FFFC'] },
+  { name: 'Cotton Candy', theme: 'Pastel', colors: ['#FFDEE9','#B5FFFC','#E0C3FC','#FBC2EB','#A6C1EE'] },
+  { name: 'Mint Cream', theme: 'Pastel', colors: ['#D4FC79','#96E6A1','#C2E9FB','#A1FFCE','#FAFFD1'] },
+  { name: 'Neon Dreams', theme: 'Vibrant', colors: ['#FF006E','#8338EC','#3A86FF','#FB5607','#FFBE0B'] },
+  { name: 'Tropical Punch', theme: 'Vibrant', colors: ['#06FFA5','#FFBE0B','#FB5607','#FF006E','#8338EC'] },
+  { name: 'Midnight', theme: 'Dark', colors: ['#0F2027','#203A43','#2C5364','#1F1C2C','#928DAB'] },
+  { name: 'Aurora', theme: 'Dark', colors: ['#000428','#004E92','#7303C0','#EC38BC','#FDEFF9'] },
+  { name: 'Terracotta', theme: 'Earthy', colors: ['#C44536','#E76F51','#F4A261','#E9C46A','#A47148'] },
+  { name: 'Mocha Mousse', theme: 'Trending', colors: ['#A47864','#C9A47C','#7B5944','#E6CFB5','#8D6748'] },
+  { name: 'Brat Green', theme: 'Trending', colors: ['#8ACE00','#B7D33B','#5E9300','#C7E66F','#88B500'] },
+];
+const MESH_STOPS = [[20,25],[75,30],[40,75],[80,80],[50,50]];
+const THEMES = ['All', ...Array.from(new Set(PALETTES.map(p => p.theme)))];
+
+const state = {
+  text: 'meshy.fun',
+  font: 0,
+  treatment: 'period',
+  size: 72,
+  tracking: -0.02,
+  italic: false,
+  weight: 700,
+  colorStyle: 'solid',
+  color1: '#0a0a0a',
+  color2: '#b48cff',
+  accent: '#ff7a59',
+  palette: 3,
+  customPalette: null,
+  customStops: null,
+  customLabel: null,
+  theme: 'All',
+  meshBlur: 0,
+  case: 'as-is',
+};
+function getMeshColors() { return state.customPalette || PALETTES[state.palette].colors; }
+function getMeshStops() { return state.customStops || MESH_STOPS; }
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Wordmark')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Text</div>
+      <input type="text" id="text" value="meshy.fun" maxlength="40">
+      <div class="row" style="margin-top:12px"><label>Case</label></div>
+      <div class="chips" id="caseChips">
+        <div class="chip active" data-c="as-is">As-is</div>
+        <div class="chip" data-c="lower">lower</div>
+        <div class="chip" data-c="upper">UPPER</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Font <span class="count">${FONTS.length}</span></div>
+      <div id="fontList"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Treatment</div>
+      <div class="chips" id="treatmentChips">
+        ${TREATMENTS.map(t => `<div class="chip ${t.id===state.treatment?'active':''}" data-t="${t.id}">${t.name}</div>`).join('')}
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Style</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Size</label><span class="val" id="sizeVal">72px</span></div>
+      <input type="range" id="size" min="36" max="140" value="72">
+      <div class="row" style="margin-top:14px"><label>Letter spacing</label><span class="val" id="trackingVal">-0.02em</span></div>
+      <input type="range" id="tracking" min="-50" max="100" value="-20">
+      <div class="row" style="margin-top:14px"><label>Weight</label><span class="val" id="weightVal">700</span></div>
+      <input type="range" id="weight" min="300" max="800" step="100" value="700">
+      <div class="row" style="margin-top:14px"><label>Italic</label></div>
+      <div class="chips" id="italicChips">
+        <div class="chip active" data-i="0">Roman</div>
+        <div class="chip" data-i="1">Italic</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Color</div>
+      <div class="chips" id="colorStyleChips">
+        ${COLOR_STYLES.map(s => `<div class="chip ${s==='solid'?'active':''}" data-s="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('')}
+      </div>
+      <div id="soloColorWrap">
+        <div class="row" style="margin-top:12px"><label>Primary</label></div>
+        <input type="color" id="color1" value="#0a0a0a">
+        <div id="color2Wrap" style="display:none">
+          <div class="row" style="margin-top:12px"><label>Secondary</label></div>
+          <input type="color" id="color2" value="#b48cff">
+        </div>
+      </div>
+      <div id="meshWrap" style="display:none">
+        <div class="row" style="margin-top:12px"><label>Theme</label></div>
+        <div class="chips" id="themeChips">
+          ${THEMES.map(t => `<div class="chip ${t==='All'?'active':''}" data-t="${t}">${t}</div>`).join('')}
+        </div>
+        <div class="row" style="margin-top:12px"><label>Palette <span class="count" id="paletteCount">${PALETTES.length}</span></label></div>
+        <div class="thumb-grid" id="paletteGrid"></div>
+        <div class="row" style="margin-top:12px"><label>Soft blur</label><span class="val" id="meshBlurVal">0px</span></div>
+        <input type="range" id="meshBlur" min="0" max="3" step="0.5" value="0">
+      </div>
+      <div class="row" style="margin-top:12px"><label>Accent (treatment)</label></div>
+      <input type="color" id="accent" value="#ff7a59">
+    </div>
+  </div>
+`;
+
+function transformText(t) {
+  if (state.case === 'lower') return t.toLowerCase();
+  if (state.case === 'upper') return t.toUpperCase();
+  return t;
+}
+
+function getFontStyle() {
+  const f = FONTS[state.font];
+  const italic = state.italic || f.italic;
+  return { family: f.stack, weight: state.weight, italic };
+}
+
+function buildSvg(forExport = false) {
+  const t = transformText(state.text);
+  const f = getFontStyle();
+  const size = state.size;
+  const tracking = state.tracking;
+  // measure text
+  const measure = document.createElement('canvas').getContext('2d');
+  measure.font = `${f.italic ? 'italic ' : ''}${f.weight} ${size}px ${f.family}`;
+  let textWidth = measure.measureText(t).width;
+  // approximate tracking effect
+  textWidth += tracking * size * (t.length - 1);
+
+  let extraW = 80, extraH = size * 0.6;
+  let xOffset = 40, yOffset = size;
+  let extra = '';
+
+  const isMesh = state.colorStyle === 'mesh';
+  let fillDef = '';
+  if (state.colorStyle === 'gradient') {
+    fillDef = `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${state.color1}"/><stop offset="100%" stop-color="${state.color2}"/></linearGradient></defs>`;
+  } else if (isMesh) {
+    const colors = getMeshColors();
+    const meshStops = getMeshStops();
+    const grads = colors.map((c, i) => {
+      const [x, y] = meshStops[i % meshStops.length];
+      return `<radialGradient id="m${i}" cx="${x}%" cy="${y}%" r="55%"><stop offset="0%" stop-color="${c}" stop-opacity="0.95"/><stop offset="100%" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+    }).join('');
+    const blurFilter = state.meshBlur > 0
+      ? `<filter id="mBlur" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="${state.meshBlur}"/></filter>`
+      : '';
+    const textPath = `<text x="${xOffset}" y="${yOffset}" font-family="${f.family}" font-weight="${f.weight}" font-size="${size}" letter-spacing="${tracking}em" ${f.italic ? 'font-style="italic"' : ''}>${escape(t)}</text>`;
+    fillDef = `<defs>${grads}${blurFilter}<clipPath id="textClip">${textPath}</clipPath></defs>`;
+  }
+  const fill = state.colorStyle === 'gradient' ? 'url(#g)' : state.color1;
+  // split: half-half color
+  let textElement;
+  if (isMesh) {
+    const colors = getMeshColors();
+    const fullW = textWidth + extraW;
+    const fullH = size * 1.4 + extraH;
+    const layers = colors.map((c, i) =>
+      `<rect width="${fullW}" height="${fullH}" fill="url(#m${i})" style="mix-blend-mode:${i===0?'normal':'screen'}"/>`
+    ).join('');
+    textElement = `<g clip-path="url(#textClip)" ${state.meshBlur > 0 ? 'filter="url(#mBlur)"' : ''}>
+      <rect width="${fullW}" height="${fullH}" fill="${colors[0]}"/>
+      ${layers}
+    </g>`;
+  } else if (state.colorStyle === 'split') {
+    const halfLen = Math.ceil(t.length / 2);
+    const first = t.slice(0, halfLen);
+    const second = t.slice(halfLen);
+    textElement = `<text x="${xOffset}" y="${yOffset}" font-family="${f.family}" font-weight="${f.weight}" font-size="${size}" letter-spacing="${tracking}em" ${f.italic ? 'font-style="italic"' : ''}><tspan fill="${state.color1}">${escape(first)}</tspan><tspan fill="${state.color2}">${escape(second)}</tspan></text>`;
+  } else {
+    textElement = `<text x="${xOffset}" y="${yOffset}" font-family="${f.family}" font-weight="${f.weight}" font-size="${size}" letter-spacing="${tracking}em" fill="${fill}" ${f.italic ? 'font-style="italic"' : ''}>${escape(t)}</text>`;
+  }
+
+  // Treatment elements
+  switch (state.treatment) {
+    case 'period': {
+      const px = xOffset + textWidth + size * 0.05;
+      extra = `<circle cx="${px}" cy="${yOffset - size*0.08}" r="${size*0.08}" fill="${state.accent}"/>`;
+      extraW = 60 + size * 0.3;
+      break;
+    }
+    case 'underline':
+      extra = `<line x1="${xOffset}" y1="${yOffset + size*0.18}" x2="${xOffset + textWidth}" y2="${yOffset + size*0.18}" stroke="${state.accent}" stroke-width="${size*0.06}" stroke-linecap="round"/>`;
+      extraH = size * 0.9;
+      break;
+    case 'dot':
+      extra = `<circle cx="${xOffset - size*0.4}" cy="${yOffset - size*0.35}" r="${size*0.18}" fill="${state.accent}"/>`;
+      xOffset = size * 0.9;
+      extraW = 40;
+      break;
+    case 'bracket': {
+      const bw = size * 0.08, gap = size * 0.2;
+      extra = `
+        <path d="M ${xOffset - gap} ${yOffset - size*0.7} l-${size*0.15} 0 l0 ${size*0.95} l${size*0.15} 0" stroke="${state.accent}" stroke-width="${bw}" fill="none" stroke-linecap="round"/>
+        <path d="M ${xOffset + textWidth + gap} ${yOffset - size*0.7} l${size*0.15} 0 l0 ${size*0.95} l-${size*0.15} 0" stroke="${state.accent}" stroke-width="${bw}" fill="none" stroke-linecap="round"/>
+      `;
+      extraW = 100 + size * 0.4;
+      break;
+    }
+    case 'slash':
+      extra = `<text x="${xOffset - size*0.5}" y="${yOffset}" font-family="${f.family}" font-weight="${f.weight}" font-size="${size}" fill="${state.accent}">/</text>`;
+      xOffset = size * 1.1;
+      extraW = 60;
+      break;
+    case 'arrow':
+      extra = `<g transform="translate(${xOffset + textWidth + size*0.2} ${yOffset - size*0.35})"><path d="M0 0 l${size*0.45} 0 M${size*0.3} -${size*0.15} l${size*0.15} ${size*0.15} l-${size*0.15} ${size*0.15}" stroke="${state.accent}" stroke-width="${size*0.06}" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+      extraW = 80 + size;
+      break;
+    case 'highlight':
+      extra = `<rect x="${xOffset - 6}" y="${yOffset - size*0.78}" width="${textWidth + 12}" height="${size*0.95}" rx="${size*0.1}" fill="${state.accent}" opacity="0.32"/>`;
+      // re-render text after highlight so it sits on top
+      const aboveText = textElement;
+      const beforeFill = state.colorStyle === 'gradient' ? `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${state.color1}"/><stop offset="100%" stop-color="${state.color2}"/></linearGradient></defs>` : '';
+      return wrapSvg(textWidth + extraW, size * 1.4 + extraH, beforeFill, extra, aboveText);
+  }
+  return wrapSvg(textWidth + extraW, size * 1.4 + extraH, fillDef, textElement, extra);
+}
+
+function wrapSvg(w, h, defs, ...layers) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${defs}${layers.join('')}</svg>`;
+}
+
+function escape(s) { return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function renderFontList() {
+  const wrap = document.getElementById('fontList');
+  wrap.innerHTML = '';
+  FONTS.forEach((f, i) => {
+    const el = document.createElement('div');
+    el.className = 'pair-row' + (i === state.font ? ' active' : '');
+    el.style.cssText = 'padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px';
+    if (i === state.font) el.style.background = 'var(--line-2)';
+    el.innerHTML = `<div style="font-family:${f.stack};font-size:15px;font-weight:${f.weight};${f.italic?'font-style:italic':''}">${f.name}</div>`;
+    el.addEventListener('click', () => {
+      state.font = i;
+      renderFontList();
+      render();
+    });
+    el.addEventListener('mouseenter', () => { if (i !== state.font) el.style.background = 'var(--line-2)'; });
+    el.addEventListener('mouseleave', () => { if (i !== state.font) el.style.background = ''; });
+    wrap.appendChild(el);
+  });
+}
+
+function renderPaletteGrid() {
+  const wrap = document.getElementById('paletteGrid');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (state.customPalette) {
+    const el = document.createElement('div');
+    el.className = 'thumb-card active';
+    const cs = state.customStops || MESH_STOPS;
+    el.style.background = state.customPalette.map((c, j) => `radial-gradient(at ${cs[j][0]}% ${cs[j][1]}%, ${c} 0px, transparent 50%)`).join(', ') + `, ${state.customPalette[0]}`;
+    el.innerHTML = `<div class="name">✨ ${state.customLabel || 'Custom'}</div>`;
+    wrap.appendChild(el);
+  }
+  const list = PALETTES.filter(p => state.theme === 'All' || p.theme === state.theme);
+  document.getElementById('paletteCount').textContent = list.length;
+  list.forEach(p => {
+    const realIdx = PALETTES.indexOf(p);
+    const el = document.createElement('div');
+    el.className = 'thumb-card' + (!state.customPalette && realIdx === state.palette ? ' active' : '');
+    el.style.background = p.colors.map((c, j) => `radial-gradient(at ${MESH_STOPS[j][0]}% ${MESH_STOPS[j][1]}%, ${c} 0px, transparent 50%)`).join(', ') + `, ${p.colors[0]}`;
+    el.innerHTML = `<div class="name">${p.name}</div>`;
+    el.addEventListener('click', () => {
+      state.palette = realIdx;
+      state.customPalette = null; state.customStops = null; state.customLabel = null;
+      renderPaletteGrid(); render();
+    });
+    wrap.appendChild(el);
+  });
+}
+
+function render() {
+  const svg = buildSvg();
+  document.getElementById('stage').innerHTML = svg;
+  // CSS snippet
+  const f = getFontStyle();
+  const isMesh = state.colorStyle === 'mesh';
+  let css;
+  if (isMesh) {
+    const colors = PALETTES[state.palette].colors;
+    const radials = colors.map((c, i) => `    radial-gradient(at ${MESH_STOPS[i][0]}% ${MESH_STOPS[i][1]}%, ${c} 0px, transparent 50%)`).join(',\n');
+    css = `.wordmark {
+  font-family: ${f.family};
+  font-weight: ${f.weight};
+  font-size: ${state.size}px;
+  letter-spacing: ${state.tracking}em;${f.italic ? '\n  font-style: italic;' : ''}
+  background-color: ${colors[0]};
+  background-image:
+${radials};
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}`;
+  } else {
+    css = `.wordmark {
+  font-family: ${f.family};
+  font-weight: ${f.weight};
+  font-size: ${state.size}px;
+  letter-spacing: ${state.tracking}em;${f.italic ? '\n  font-style: italic;' : ''}
+  color: ${state.color1};
+}`;
+  }
+  document.getElementById('cssOut').textContent = css;
+  document.getElementById('color2Wrap').style.display = (state.colorStyle === 'gradient' || state.colorStyle === 'split') ? 'block' : 'none';
+  document.getElementById('meshWrap').style.display = isMesh ? 'block' : 'none';
+  document.getElementById('soloColorWrap').style.display = isMesh ? 'none' : 'block';
+  if (isMesh) renderPaletteGrid();
+}
+
+document.getElementById('text').addEventListener('input', e => { state.text = e.target.value; render(); });
+document.getElementById('caseChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#caseChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.case = c.dataset.c;
+  render();
+});
+document.getElementById('treatmentChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#treatmentChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.treatment = c.dataset.t;
+  render();
+});
+document.getElementById('size').addEventListener('input', e => {
+  state.size = +e.target.value;
+  document.getElementById('sizeVal').textContent = state.size + 'px';
+  render();
+});
+document.getElementById('tracking').addEventListener('input', e => {
+  state.tracking = (+e.target.value) / 1000;
+  document.getElementById('trackingVal').textContent = state.tracking.toFixed(3) + 'em';
+  render();
+});
+document.getElementById('weight').addEventListener('input', e => {
+  state.weight = +e.target.value;
+  document.getElementById('weightVal').textContent = state.weight;
+  render();
+});
+document.getElementById('italicChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#italicChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.italic = c.dataset.i === '1';
+  render();
+});
+document.getElementById('colorStyleChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#colorStyleChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.colorStyle = c.dataset.s;
+  render();
+});
+// theme + mesh handlers (delegated since elements live in dynamic right sidebar)
+document.body.addEventListener('click', e => {
+  const tc = e.target.closest('#themeChips .chip');
+  if (tc) {
+    document.querySelectorAll('#themeChips .chip').forEach(x => x.classList.remove('active'));
+    tc.classList.add('active');
+    state.theme = tc.dataset.t;
+    renderPaletteGrid();
+  }
+});
+document.body.addEventListener('input', e => {
+  if (e.target.id === 'meshBlur') {
+    state.meshBlur = +e.target.value;
+    document.getElementById('meshBlurVal').textContent = state.meshBlur + 'px';
+    render();
+  }
+});
+
+document.getElementById('color1').addEventListener('input', e => { state.color1 = e.target.value; render(); });
+document.getElementById('color2').addEventListener('input', e => { state.color2 = e.target.value; render(); });
+document.getElementById('accent').addEventListener('input', e => { state.accent = e.target.value; render(); });
+
+document.getElementById('svgBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg(true)], { type: 'image/svg+xml' });
+  const link = document.createElement('a');
+  link.download = `wordmark-${state.text.replace(/[^a-z0-9]/gi,'-').toLowerCase()}.svg`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  meshy.toast('SVG downloaded');
+});
+document.getElementById('pngBtn').addEventListener('click', () => {
+  const svgStr = buildSvg(true);
+  const img = new Image();
+  const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  img.onload = () => {
+    const scale = 3;
+    const c = document.createElement('canvas');
+    c.width = img.width * scale; c.height = img.height * scale;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a');
+    link.download = `wordmark-${state.text.replace(/[^a-z0-9]/gi,'-').toLowerCase()}.png`;
+    link.href = c.toDataURL('image/png');
+    link.click();
+    meshy.toast('PNG downloaded');
+  };
+  img.src = url;
+});
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(document.getElementById('cssOut').textContent, 'CSS copied'));
+
+document.getElementById('surpriseBtn').addEventListener('click', () => {
+  const harmonies = ['analogous','complementary','triadic','tetradic','monochromatic','split','warm','cool','duotone'];
+  const harmony = meshy.pickOne(harmonies);
+  // Pick color style — favor mesh for visual impact
+  const styleRoll = Math.random();
+  if (styleRoll < 0.55) state.colorStyle = 'mesh';
+  else if (styleRoll < 0.75) state.colorStyle = 'gradient';
+  else if (styleRoll < 0.88) state.colorStyle = 'split';
+  else state.colorStyle = 'solid';
+
+  // Generate harmonious palette
+  const pal = meshy.randomPalette({ harmony });
+  state.customPalette = pal;
+  state.customStops = meshy.randomStops();
+  state.customLabel = harmony.charAt(0).toUpperCase() + harmony.slice(1);
+  state.color1 = pal[0];
+  state.color2 = pal[2];
+  state.accent = pal[Math.floor(Math.random() * pal.length)];
+
+  // Type variation
+  state.font = Math.floor(Math.random() * FONTS.length);
+  state.treatment = meshy.pickOne(TREATMENTS).id;
+  state.italic = meshy.chance(0.2);
+  state.weight = meshy.pickOne([400, 500, 600, 700, 800]);
+  state.size = 60 + Math.floor(Math.random() * 40);
+  state.tracking = (Math.random() * 60 - 40) / 1000;
+  state.case = meshy.pickOne(['as-is', 'lower', 'upper']);
+  state.meshBlur = state.colorStyle === 'mesh' && meshy.chance(0.5) ? Math.random() * 2 : 0;
+
+  // Sync all UI
+  document.querySelectorAll('#colorStyleChips .chip').forEach(c => c.classList.toggle('active', c.dataset.s === state.colorStyle));
+  document.querySelectorAll('#caseChips .chip').forEach(c => c.classList.toggle('active', c.dataset.c === state.case));
+  document.querySelectorAll('#treatmentChips .chip').forEach(c => c.classList.toggle('active', c.dataset.t === state.treatment));
+  document.querySelectorAll('#italicChips .chip').forEach(c => c.classList.toggle('active', c.dataset.i === (state.italic ? '1' : '0')));
+  document.getElementById('size').value = state.size;
+  document.getElementById('sizeVal').textContent = state.size + 'px';
+  document.getElementById('tracking').value = state.tracking * 1000;
+  document.getElementById('trackingVal').textContent = state.tracking.toFixed(3) + 'em';
+  document.getElementById('weight').value = state.weight;
+  document.getElementById('weightVal').textContent = state.weight;
+  document.getElementById('color1').value = state.color1;
+  document.getElementById('color2').value = state.color2;
+  document.getElementById('accent').value = state.accent;
+
+  renderFontList();
+  render();
+  meshy.toast(`✨ ${state.customLabel} harmony`);
+});
+
+renderFontList();
+render();
+</script>
+</body>
+</html>

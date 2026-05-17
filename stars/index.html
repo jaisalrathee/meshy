@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Starry Sky · meshy.fun</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A starry sky.</div>
+      <button class="btn" id="newSeedBtn">New seed</button>
+      <button class="btn" id="svgBtn">Download SVG</button>
+      <button class="btn primary" id="pngBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 24px; background: #0a0a0a; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.5); border-radius: 8px; display: block; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const SKY_PRESETS = {
+  midnight: ['#000428','#001a3e','#003366'],
+  dawn: ['#0F0E2C','#2A2050','#7B4BBA','#FFB070'],
+  galaxy: ['#040415','#1A0A2A','#3A1860','#7B30B0'],
+  void: ['#000','#0a0a0a','#1a1a1a'],
+  sunset: ['#1A0820','#5A1850','#A02060','#FF6080','#FFB060'],
+};
+
+const state = { sky: 'midnight', count: 200, sizeMax: 2.5, twinkle: 0.5, milky: false, seed: 7, w: 1200, h: 800, accent: '#ffffff' };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Stars')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Sky preset</div>
+      <div class="chips" id="skyChips">
+        ${Object.keys(SKY_PRESETS).map(k => `<div class="chip ${k==='midnight'?'active':''}" data-s="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Star color</div>
+      <input type="color" id="accent" value="#ffffff">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Aspect</div>
+      <div class="chips" id="aspectChips">
+        <div class="chip" data-a="16/9">16:9</div>
+        <div class="chip active" data-a="3/2">3:2</div>
+        <div class="chip" data-a="1/1">1:1</div>
+        <div class="chip" data-a="9/16">9:16</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Star count</label><span class="val" id="countVal">200</span></div>
+      <input type="range" id="count" min="20" max="800" value="200">
+      <div class="row" style="margin-top:14px"><label>Max size</label><span class="val" id="sizeMaxVal">2.5</span></div>
+      <input type="range" id="sizeMax" min="10" max="50" value="25">
+      <div class="row" style="margin-top:14px"><label>Brightness</label><span class="val" id="twinkleVal">50%</span></div>
+      <input type="range" id="twinkle" min="0" max="100" value="50">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Extras</div>
+      <div class="chips"><div class="chip" id="milkyChip">Milky band</div></div>
+    </div>
+  </div>
+`;
+
+function rand(seed) { return () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }; }
+
+function buildSvg() {
+  const W = state.w, H = state.h;
+  const colors = SKY_PRESETS[state.sky];
+  // Gradient background
+  let bgDef;
+  if (colors.length === 2) {
+    bgDef = `<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${colors[0]}"/><stop offset="100%" stop-color="${colors[1]}"/></linearGradient>`;
+  } else {
+    bgDef = `<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">${colors.map((c,i) => `<stop offset="${(i/(colors.length-1))*100}%" stop-color="${c}"/>`).join('')}</linearGradient>`;
+  }
+  // Stars
+  const r = rand(state.seed);
+  let stars = '';
+  for (let i = 0; i < state.count; i++) {
+    const x = r() * W, y = r() * H;
+    const size = 0.3 + r() * (state.sizeMax/10) * 2;
+    const op = 0.3 + r() * (state.twinkle/100) * 0.7;
+    stars += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${size.toFixed(2)}" fill="${state.accent}" opacity="${op.toFixed(2)}"/>`;
+  }
+  // A few bright stars with glow
+  for (let i = 0; i < 8; i++) {
+    const x = r() * W, y = r() * H;
+    stars += `<circle cx="${x}" cy="${y}" r="6" fill="${state.accent}" opacity="0.08"/><circle cx="${x}" cy="${y}" r="2" fill="${state.accent}" opacity="0.9"/>`;
+  }
+  // Milky way band (optional)
+  let milky = '';
+  if (state.milky) {
+    milky = `<defs><radialGradient id="milky" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${state.accent}" stop-opacity="0.18"/><stop offset="100%" stop-color="${state.accent}" stop-opacity="0"/></radialGradient></defs>
+      <ellipse cx="${W/2}" cy="${H/2}" rx="${W*0.55}" ry="${H*0.18}" fill="url(#milky)" transform="rotate(-20 ${W/2} ${H/2})"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><defs>${bgDef}</defs><rect width="${W}" height="${H}" fill="url(#bg)"/>${milky}${stars}</svg>`;
+}
+
+function render() {
+  const aspect = state.h / state.w;
+  // figure W/H from aspect
+  document.getElementById('outSvg').outerHTML = buildSvg().replace('<svg ', '<svg id="outSvg" ');
+}
+
+function setAspect(a) {
+  const [aw,ah] = a.split('/').map(Number);
+  state.w = 1200;
+  state.h = Math.round(1200 * (ah/aw));
+}
+
+function bindRange(id,key,suffix='', transform = x => +x) {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = transform(e.target.value);
+    document.getElementById(id+'Val').textContent = (typeof state[key] === 'number' && !Number.isInteger(state[key]) ? state[key].toFixed(1) : state[key]) + suffix;
+    render();
+  });
+}
+bindRange('count','count');
+document.getElementById('sizeMax').addEventListener('input', e => {
+  state.sizeMax = +e.target.value / 10;
+  document.getElementById('sizeMaxVal').textContent = state.sizeMax.toFixed(1);
+  render();
+});
+bindRange('twinkle','twinkle','%');
+document.getElementById('accent').addEventListener('input', e => { state.accent = e.target.value; render(); });
+document.getElementById('skyChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#skyChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); state.sky = c.dataset.s; render();
+});
+document.getElementById('aspectChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#aspectChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); setAspect(c.dataset.a); render();
+});
+document.getElementById('milkyChip').addEventListener('click', e => { state.milky = !state.milky; e.target.classList.toggle('active', state.milky); render(); });
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); render(); });
+document.getElementById('svgBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const link = document.createElement('a'); link.download = 'starry-sky.svg'; link.href = URL.createObjectURL(blob); link.click();
+});
+document.getElementById('pngBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = state.w*2; c.height = state.h*2;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.download = 'starry-sky.png'; link.href = c.toDataURL('image/png'); link.click();
+  };
+  img.src = url;
+});
+
+setAspect('3/2'); render();
+</script>
+</body>
+</html>

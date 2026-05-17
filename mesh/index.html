@@ -1,0 +1,1741 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mesh Gradient Generator · meshy.fun</title>
+<meta name="description" content="Create beautiful mesh gradients with curated presets, themes, and effects. Free, no signup, export PNG/SVG/CSS." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fafaf9;
+    --panel: #ffffff;
+    --ink: #0a0a0a;
+    --ink-2: #525252;
+    --ink-3: #a3a3a3;
+    --line: #ececec;
+    --line-2: #f4f4f4;
+    --accent: #0a0a0a;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
+    overflow: hidden;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 320px 1fr 300px;
+    height: 100vh;
+    gap: 0;
+  }
+  /* Sidebar */
+  .sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar.right { border-right: none; border-left: 1px solid var(--line); }
+  .brand {
+    padding: 22px 22px 18px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: conic-gradient(from 220deg at 50% 50%, #ff7a59, #ffd56b, #6be3c2, #6ba6ff, #b48cff, #ff7a59);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+  }
+  .brand-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+  .brand-tag {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .sec {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sec-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sec-title .count { color: var(--ink-3); font-weight: 500; }
+  .scroll { overflow-y: auto; flex: 1; }
+  .scroll::-webkit-scrollbar { width: 6px; }
+  .scroll::-webkit-scrollbar-thumb { background: #e5e5e5; border-radius: 3px; }
+
+  /* Preset grid */
+  .preset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .preset {
+    aspect-ratio: 1.2 / 1;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,.06);
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .preset:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .preset.active { box-shadow: 0 0 0 2px var(--ink), 0 8px 20px rgba(0,0,0,.1); }
+  .preset .name {
+    position: absolute;
+    bottom: 6px; left: 8px;
+    font-size: 10px;
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,.4);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+
+  /* Style grid */
+  .style-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .style-tile {
+    aspect-ratio: 1 / 1;
+    border-radius: 10px;
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    border: 1.5px solid transparent;
+    transition: transform .15s ease;
+    background: #f4f4f4;
+  }
+  .style-tile:hover { transform: translateY(-1px); }
+  .style-tile.active { border-color: var(--ink); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  .style-tile .preview { position: absolute; inset: 0; }
+  .style-tile .label {
+    position: absolute;
+    bottom: 3px; left: 5px;
+    font-size: 9px;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,.5);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  /* Pixel grid */
+  .pixel-grid {
+    position: absolute; inset: 0;
+    display: grid;
+    image-rendering: pixelated;
+  }
+  .pixel-grid > div { width: 100%; height: 100%; }
+
+  /* Sand texture */
+  .sand-grain {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+    opacity: 0.35;
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='2.2' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.4  0 0 0 0 0.3  0 0 0 0 0.2  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  /* Theme chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    padding: 6px 11px;
+    border-radius: 999px;
+    background: var(--line-2);
+    font-size: 12px;
+    color: var(--ink-2);
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all .15s ease;
+    font-weight: 500;
+  }
+  .chip:hover { background: #eaeaea; color: var(--ink); }
+  .chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  /* Canvas */
+  .canvas-wrap {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow: hidden;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toolbar .title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 28px;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--ink);
+    margin-right: auto;
+  }
+  .btn {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all .15s ease;
+    letter-spacing: -0.01em;
+  }
+  .btn:hover { border-color: #d4d4d4; background: #fafafa; }
+  .btn.primary {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+  }
+  .btn.primary:hover { background: #222; }
+  .btn svg { width: 14px; height: 14px; }
+  .btn.icon { padding: 0; width: 36px; justify-content: center; }
+
+  .canvas {
+    flex: 1;
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 30px 60px -20px rgba(0,0,0,.15), 0 18px 36px -18px rgba(0,0,0,.12);
+    background: #000;
+  }
+  .mesh {
+    position: absolute;
+    inset: 0;
+    transition: filter .25s ease;
+  }
+  .mesh > div {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: .95;
+    will-change: transform;
+  }
+  .noise {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    mix-blend-mode: overlay;
+  }
+  .noise[data-type="fine"]   { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.55'/></svg>"); }
+  .noise[data-type="coarse"] { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='250' height='250'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.45' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.4 -0.2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); mix-blend-mode: multiply; }
+  .noise[data-type="film"]   { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='turbulence' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.45  0 0 0 0 0.4  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); mix-blend-mode: soft-light; }
+  .noise[data-type="paper"]  { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='5' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.95  0 0 0 0 0.92  0 0 0 0 0.85  0 0 0 0.7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); mix-blend-mode: multiply; }
+  .vignette {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, #000 130%);
+    opacity: 0;
+  }
+  .glow {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 45%, rgba(255,255,255,.9), transparent 55%);
+    mix-blend-mode: soft-light;
+    opacity: 0;
+  }
+
+  /* Right panel */
+  .controls .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .controls label {
+    font-size: 12px;
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+  .controls .val {
+    font-size: 11px;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--line);
+    border-radius: 4px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    background: #fff;
+    border: 1.5px solid var(--ink);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  }
+
+  /* Color stops */
+  .stops { display: flex; flex-direction: column; gap: 8px; }
+  .stop-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px;
+    border-radius: 10px;
+    background: var(--line-2);
+  }
+  .swatch {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    border: 1px solid rgba(0,0,0,.08);
+    cursor: pointer;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .swatch input {
+    position: absolute; inset: 0;
+    opacity: 0;
+    width: 100%; height: 100%;
+    cursor: pointer;
+  }
+  .stop-hex {
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex: 1;
+  }
+  .stop-remove {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--ink-3);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stop-remove:hover { background: #e5e5e5; color: var(--ink); }
+  .add-stop {
+    width: 100%;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px dashed #d4d4d4;
+    background: transparent;
+    color: var(--ink-2);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    margin-top: 4px;
+  }
+  .add-stop:hover { border-color: var(--ink); color: var(--ink); }
+
+  /* Template strip */
+  .templates {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .templates::-webkit-scrollbar { height: 0; }
+  .tpl {
+    flex-shrink: 0;
+    height: 48px;
+    width: 72px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: transform .15s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .tpl:hover { transform: translateY(-2px); }
+  .tpl.active { border-color: var(--ink); }
+  .tpl-label {
+    position: absolute;
+    bottom: 2px; left: 4px;
+    font-size: 9px;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,.4);
+    font-weight: 500;
+  }
+
+  /* Dropdown */
+  .dropdown { position: relative; }
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: var(--shadow);
+    min-width: 240px;
+    z-index: 50;
+    display: none;
+  }
+  .dropdown.open .dropdown-menu { display: block; }
+  .dropdown-menu .menu-section {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+    padding: 8px 10px 4px;
+    font-weight: 600;
+  }
+  .dropdown-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 7px 10px;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .dropdown-menu button:hover { background: var(--line-2); }
+
+  /* Drag handles */
+  .handles {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  .handles.show { pointer-events: auto; }
+  .handle {
+    position: absolute;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.3), 0 2px 6px rgba(0,0,0,.25);
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    pointer-events: auto;
+    transition: transform .12s ease;
+    opacity: 0;
+  }
+  .handles.show .handle { opacity: 1; }
+  .handle:hover { transform: translate(-50%, -50%) scale(1.25); }
+  .handle:active { cursor: grabbing; }
+
+  /* Dropzone */
+  .dropzone {
+    position: absolute; inset: 0;
+    background: rgba(10,10,10,.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+    border-radius: 20px;
+  }
+  .dropzone.show { opacity: 1; }
+  .dropzone-inner {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    border: 2px dashed rgba(255,255,255,.4);
+    padding: 32px 44px;
+    border-radius: 14px;
+  }
+
+  /* Library card */
+  .library-item { position: relative; }
+  .library-item .del {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.6);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .library-item:hover .del { display: flex; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    opacity: 0;
+    transition: all .3s ease;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* Footer hint */
+  .hint {
+    font-size: 11px;
+    color: var(--ink-3);
+    text-align: center;
+    padding: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .hint kbd {
+    background: var(--line-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: 'SF Mono', monospace;
+    color: var(--ink-2);
+  }
+
+  @media (max-width: 1100px) {
+    .app { grid-template-columns: 280px 1fr 260px; }
+  }
+  @media (max-width: 880px) {
+    html, body { height: auto; overflow: auto; }
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: auto;
+      min-height: 100vh;
+    }
+    .sidebar, .sidebar.right {
+      display: flex;
+      border: none;
+      border-bottom: 1px solid var(--line);
+      max-height: none;
+      flex: 0 0 auto;
+    }
+    .sidebar.right { border-bottom: none; border-top: 1px solid var(--line); order: 3; }
+    .sidebar:not(.right) { order: 1; }
+    .scroll { overflow-y: visible; flex: 0 0 auto; }
+    .canvas-wrap { padding: 16px; order: 2; flex: 1; min-height: 0; }
+    .canvas { min-height: 55vh; }
+    .toolbar { flex-wrap: wrap; gap: 6px; }
+    .toolbar .title { font-size: 22px; flex: 1 1 100%; margin-bottom: 4px; line-height: 1.1; }
+    .toolbar .btn { font-size: 12px; height: 34px; padding: 0 12px; }
+    .preset-grid { grid-template-columns: 1fr 1fr 1fr; }
+    .style-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  }
+  @media (max-width: 480px) {
+    .preset-grid { grid-template-columns: 1fr 1fr; }
+    .style-grid { grid-template-columns: 1fr 1fr 1fr; }
+    .canvas { min-height: 50vh; }
+  }
+</style>
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+
+  <!-- LEFT: Presets & Themes -->
+  <aside class="sidebar">
+    <div class="brand">
+      <a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+        <div class="brand-mark"></div>
+        <div style="display:flex;flex-direction:column;gap:1px;line-height:1;">
+          <div class="brand-name">meshy.fun</div>
+          <a href="https://tinystartupstudio.com" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:10px;color:var(--ink-3);text-decoration:none;letter-spacing:0.01em;line-height:1;margin-top:2px;font-weight:500">by Tiny Startup Studio</a>
+        </div>
+      </a>
+      <div class="brand-tag">Mesh</div>
+    </div>
+
+    <div class="scroll">
+      <div class="sec">
+        <div class="sec-title">Styles <span class="count" id="styleCount"></span></div>
+        <div class="style-grid" id="styles"></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-title">Themes <span class="count" id="themeCount"></span></div>
+        <div class="chips" id="themes"></div>
+      </div>
+
+      <div class="sec" id="librarySec" style="display:none">
+        <div class="sec-title">My Library <span class="count" id="libraryCount"></span></div>
+        <div class="preset-grid" id="library"></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-title">Presets <span class="count" id="presetCount"></span></div>
+        <div class="preset-grid" id="presets"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CENTER: Canvas -->
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">Compose a gradient.</div>
+
+      <button class="btn icon" id="undoBtn" title="Undo (⌘Z)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+      </button>
+      <button class="btn icon" id="redoBtn" title="Redo (⌘⇧Z)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+      </button>
+
+      <button class="btn" id="animateBtn" title="Animate (A)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span id="animateLabel">Animate</span>
+      </button>
+
+      <button class="btn" id="randomBtn" title="Randomize (R)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><circle cx="8" cy="9" r="0.8" fill="currentColor"/><circle cx="16" cy="9" r="0.8" fill="currentColor"/><circle cx="12" cy="13" r="0.8" fill="currentColor"/><circle cx="8" cy="16" r="0.8" fill="currentColor"/><circle cx="16" cy="16" r="0.8" fill="currentColor"/></svg>
+        Randomize
+      </button>
+
+      <button class="btn" id="saveBtn" title="Save to library">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        Save
+      </button>
+
+      <button class="btn" id="shareBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Share
+      </button>
+
+      <div class="dropdown">
+        <button class="btn primary" id="exportBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:2px;opacity:.7"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dropdown-menu" id="exportMenu">
+          <div class="menu-section">Image</div>
+          <button data-export="png-1080">PNG · 1920×1080</button>
+          <button data-export="png-4k">PNG · 3840×2160</button>
+          <button data-export="png-square">PNG · 2048×2048</button>
+          <button data-export="svg">SVG</button>
+          <div class="menu-section">Use Case</div>
+          <button data-export="og">OG Image · 1200×630</button>
+          <button data-export="twitter">X Header · 1500×500</button>
+          <button data-export="iphone">iPhone Wallpaper · 1170×2532</button>
+          <button data-export="notion">Notion Cover · 1500×600</button>
+          <button data-export="podcast">Podcast · 3000×3000</button>
+          <div class="menu-section">Code</div>
+          <button data-export="css">Copy CSS</button>
+          <button data-export="tailwind">Copy Tailwind config</button>
+          <button data-export="figma">Copy Figma fills</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas" id="canvas">
+      <div class="mesh" id="mesh"></div>
+      <div class="noise" id="noise"></div>
+      <div class="vignette" id="vignette"></div>
+      <div class="glow" id="glow"></div>
+      <div class="handles" id="handles"></div>
+      <div class="dropzone" id="dropzone">
+        <div class="dropzone-inner">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div>Drop image to extract palette</div>
+        </div>
+      </div>
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <defs>
+          <filter id="warp">
+            <feTurbulence id="warpTurb" type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="3"/>
+            <feDisplacementMap id="warpDisp" in="SourceGraphic" scale="0"/>
+          </filter>
+        </defs>
+      </svg>
+    </div>
+
+    <div>
+      <div class="sec-title" style="margin-bottom: 8px; padding: 0;">Templates</div>
+      <div class="templates" id="templates"></div>
+    </div>
+  </main>
+
+  <!-- RIGHT: Controls -->
+  <aside class="sidebar right">
+    <div class="brand">
+      <div class="brand-name" style="font-size: 18px;">Controls</div>
+    </div>
+
+    <div class="scroll">
+      <div class="sec controls">
+        <div class="row"><label>Blur</label><span class="val" id="blurVal">60</span></div>
+        <input type="range" id="blur" min="20" max="160" value="60" />
+
+        <div class="row" style="margin-top: 14px;"><label>Saturation</label><span class="val" id="satVal">100%</span></div>
+        <input type="range" id="sat" min="50" max="180" value="100" />
+
+        <div class="row" style="margin-top: 14px;"><label>Contrast</label><span class="val" id="conVal">100%</span></div>
+        <input type="range" id="con" min="80" max="140" value="100" />
+
+      </div>
+
+      <div class="sec controls">
+        <div class="sec-title">Effects</div>
+
+        <div class="row"><label>Grain</label><span class="val" id="grainVal">0%</span></div>
+        <input type="range" id="grain" min="0" max="80" value="0" />
+
+        <div class="row" style="margin-top: 12px;"><label>Grain Type</label></div>
+        <div class="chips" id="grainType" style="margin-top: 4px;">
+          <div class="chip active" data-grain="fine">Fine</div>
+          <div class="chip" data-grain="coarse">Coarse</div>
+          <div class="chip" data-grain="film">Film</div>
+          <div class="chip" data-grain="paper">Paper</div>
+        </div>
+
+        <div class="row" style="margin-top: 14px;"><label>Vignette</label><span class="val" id="vignetteVal">0%</span></div>
+        <input type="range" id="vignette" min="0" max="100" value="0" />
+
+        <div class="row" style="margin-top: 14px;"><label>Glow</label><span class="val" id="glowVal">0%</span></div>
+        <input type="range" id="glow" min="0" max="100" value="0" />
+
+        <div class="row" style="margin-top: 14px;"><label>Distortion</label><span class="val" id="distortVal">0%</span></div>
+        <input type="range" id="distort" min="0" max="100" value="0" />
+
+        <div class="row" style="margin-top: 14px;"><label>Brightness</label><span class="val" id="brightVal">100%</span></div>
+        <input type="range" id="bright" min="60" max="140" value="100" />
+
+        <div class="row" style="margin-top: 14px;"><label>Hue Shift</label><span class="val" id="hueVal">0°</span></div>
+        <input type="range" id="hue" min="-180" max="180" value="0" />
+      </div>
+
+      <div class="sec">
+        <div class="sec-title">Color Stops <span class="count" id="stopCount"></span></div>
+        <div class="stops" id="stops"></div>
+        <button class="add-stop" id="addStop">+ Add color</button>
+      </div>
+
+      <div class="sec">
+        <div class="sec-title">Aspect</div>
+        <div class="chips" id="aspect">
+          <div class="chip" data-ratio="16/9">16:9</div>
+          <div class="chip active" data-ratio="auto">Fit</div>
+          <div class="chip" data-ratio="1/1">1:1</div>
+          <div class="chip" data-ratio="9/16">9:16</div>
+          <div class="chip" data-ratio="3/2">3:2</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint">
+      <kbd>R</kbd> randomize · <kbd>C</kbd> copy CSS · <kbd>⌘Z</kbd> undo<br/>
+      <a href="https://tinystartupstudio.com" target="_blank" style="color:var(--ink-3);text-decoration:none;">Powered by Tiny Startup Studio</a>
+    </div>
+  </aside>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard</div>
+
+<script>
+/* ---------- Curated palettes ---------- */
+const PRESETS = [
+  // Sunset / Warm
+  { name: 'Peach Sorbet', theme: 'Warm', colors: ['#FFB199','#FF8FA3','#FFC8A2','#FFD6A5','#FF9A8B'] },
+  { name: 'Sunset Riot', theme: 'Warm', colors: ['#FF6B6B','#FFA07A','#FFD56B','#FF8E72','#FF5E78'] },
+  { name: 'Amber Glow', theme: 'Warm', colors: ['#F6D365','#FDA085','#FF9A8B','#FAD0C4','#FFB88C'] },
+  { name: 'Coral Reef', theme: 'Warm', colors: ['#FF7E5F','#FEB47B','#FF9A9E','#FAD0C4','#FFC796'] },
+  { name: 'Mango Tango', theme: 'Warm', colors: ['#FF8008','#FFC837','#FF512F','#F09819','#FFB347'] },
+
+  // Cool / Ocean
+  { name: 'Arctic Mist', theme: 'Cool', colors: ['#A1C4FD','#C2E9FB','#E0C3FC','#8EC5FC','#B5FFFC'] },
+  { name: 'Deep Sea', theme: 'Cool', colors: ['#1E3C72','#2A5298','#5B86E5','#36D1DC','#0F2027'] },
+  { name: 'Lagoon', theme: 'Cool', colors: ['#43C6AC','#191654','#6BE3C2','#5B86E5','#36D1DC'] },
+  { name: 'Glacier', theme: 'Cool', colors: ['#83A4D4','#B6FBFF','#C2E9FB','#A1C4FD','#E0EAFC'] },
+  { name: 'Twilight', theme: 'Cool', colors: ['#4568DC','#B06AB3','#6A82FB','#FC5C7D','#5D26C1'] },
+
+  // Pastel
+  { name: 'Cotton Candy', theme: 'Pastel', colors: ['#FFDEE9','#B5FFFC','#E0C3FC','#FBC2EB','#A6C1EE'] },
+  { name: 'Mint Cream', theme: 'Pastel', colors: ['#D4FC79','#96E6A1','#C2E9FB','#A1FFCE','#FAFFD1'] },
+  { name: 'Lavender Haze', theme: 'Pastel', colors: ['#E0C3FC','#8EC5FC','#FBC2EB','#A6C1EE','#D4A5FF'] },
+  { name: 'Bubblegum', theme: 'Pastel', colors: ['#FFCCDE','#FFEDD8','#C5DEEA','#D4BBFC','#FDCBE7'] },
+  { name: 'Powder', theme: 'Pastel', colors: ['#FDEFF9','#EC38BC','#7303C0','#03001E','#FDEFF9'] },
+
+  // Vibrant
+  { name: 'Neon Dreams', theme: 'Vibrant', colors: ['#FF006E','#8338EC','#3A86FF','#FB5607','#FFBE0B'] },
+  { name: 'Electric Pop', theme: 'Vibrant', colors: ['#F72585','#7209B7','#3A0CA3','#4361EE','#4CC9F0'] },
+  { name: 'Tropical Punch', theme: 'Vibrant', colors: ['#06FFA5','#FFBE0B','#FB5607','#FF006E','#8338EC'] },
+  { name: 'Acid Wash', theme: 'Vibrant', colors: ['#A8FF78','#78FFD6','#00C9FF','#92FE9D','#F857A6'] },
+
+  // Dark / Moody
+  { name: 'Midnight', theme: 'Dark', colors: ['#0F2027','#203A43','#2C5364','#1F1C2C','#928DAB'] },
+  { name: 'Volcanic', theme: 'Dark', colors: ['#16222A','#3A6073','#641E16','#FF512F','#DD2476'] },
+  { name: 'Aurora', theme: 'Dark', colors: ['#000428','#004E92','#7303C0','#EC38BC','#FDEFF9'] },
+  { name: 'Obsidian', theme: 'Dark', colors: ['#232526','#414345','#0F2027','#1B1B3A','#693668'] },
+
+  // Earthy
+  { name: 'Terracotta', theme: 'Earthy', colors: ['#C44536','#E76F51','#F4A261','#E9C46A','#A47148'] },
+  { name: 'Forest Floor', theme: 'Earthy', colors: ['#283C2A','#52796F','#84A98C','#CAD2C5','#354F52'] },
+  { name: 'Desert Dune', theme: 'Earthy', colors: ['#D5BBA0','#C19A6B','#E8C39E','#A47148','#F5E6D3'] },
+  { name: 'Moss', theme: 'Earthy', colors: ['#606C38','#283618','#DDA15E','#BC6C25','#FEFAE0'] },
+
+  // Mono
+  { name: 'Greyscale', theme: 'Mono', colors: ['#1a1a1a','#4a4a4a','#7a7a7a','#aaaaaa','#dadada'] },
+  { name: 'Cream Sand', theme: 'Mono', colors: ['#F5E6D3','#E8D5B7','#D4B996','#C19A6B','#A47148'] },
+
+  // Editorial / trending
+  { name: 'Iris Bloom', theme: 'Trending', colors: ['#667EEA','#764BA2','#F093FB','#F5576C','#4FACFE'] },
+  { name: 'Y2K Chrome', theme: 'Trending', colors: ['#E1F5FE','#FFCCDE','#D4BBFC','#A6C1EE','#FDE2E4'] },
+  { name: 'Brat Green', theme: 'Trending', colors: ['#8ACE00','#B7D33B','#5E9300','#C7E66F','#88B500'] },
+  { name: 'Mocha Mousse', theme: 'Trending', colors: ['#A47864','#C9A47C','#7B5944','#E6CFB5','#8D6748'] },
+  { name: 'Cyber Lime', theme: 'Trending', colors: ['#D4FF00','#39FF14','#00FFC6','#7CFC00','#ADFF2F'] },
+
+  // Nature
+  { name: 'Sakura', theme: 'Nature', colors: ['#FFC0CB','#FFB7C5','#FFE4E1','#FFD1DC','#FBC2EB'] },
+  { name: 'Olive Grove', theme: 'Nature', colors: ['#708238','#A4B47C','#BFCBA8','#556B2F','#9CAF88'] },
+  { name: 'Stormcloud', theme: 'Nature', colors: ['#4B5358','#7A8B99','#B0B8C1','#2C3539','#9DA9B0'] },
+  { name: 'Coral Beach', theme: 'Nature', colors: ['#FFCCBC','#FFAB91','#80DEEA','#B2EBF2','#FFE0B2'] },
+  { name: 'Northern Lights', theme: 'Nature', colors: ['#0B486B','#3B8686','#79BD9A','#A8DBA8','#CFF09E'] },
+
+  // Cinematic
+  { name: 'Blade Runner', theme: 'Cinematic', colors: ['#FF0080','#7928CA','#FF4D4D','#F9CB28','#0070F3'] },
+  { name: 'Dune', theme: 'Cinematic', colors: ['#C2956C','#8B5E3C','#E8C39E','#A0623F','#5C3317'] },
+  { name: 'Tron', theme: 'Cinematic', colors: ['#000428','#004E92','#00D2FF','#3A47D5','#00C6FF'] },
+  { name: 'Wes Anderson', theme: 'Cinematic', colors: ['#F5C7B8','#E8AA9C','#C49B8F','#A07B6C','#7C5C50'] },
+  { name: 'Matrix', theme: 'Cinematic', colors: ['#001E0F','#003B00','#00FF41','#008F11','#0D0208'] },
+];
+
+const TEMPLATES = [
+  { name: 'Cloud', stops: [[20,25],[75,30],[40,75],[80,80],[50,50]] },
+  { name: 'Vortex', stops: [[50,50],[20,20],[80,20],[20,80],[80,80]] },
+  { name: 'Wave', stops: [[10,30],[35,70],[60,30],[85,70],[50,50]] },
+  { name: 'Aurora', stops: [[15,15],[50,30],[85,15],[30,80],[70,80]] },
+  { name: 'Bloom', stops: [[50,40],[30,55],[70,55],[40,75],[60,75]] },
+  { name: 'Drift', stops: [[15,80],[45,20],[75,60],[90,30],[25,50]] },
+];
+
+const THEMES = ['All', ...Array.from(new Set(PRESETS.map(p => p.theme)))];
+
+const STYLES = [
+  { id: 'mesh',   name: 'Mesh' },
+  { id: 'pixel',  name: 'Pixel' },
+  { id: 'sand',   name: 'Sand' },
+  { id: 'aurora', name: 'Aurora' },
+  { id: 'linear', name: 'Linear' },
+  { id: 'conic',  name: 'Conic' },
+  { id: 'holo',   name: 'Holo' },
+  { id: 'stripe', name: 'Stripes' },
+  { id: 'wave',   name: 'Wave' },
+];
+
+/* ---------- State ---------- */
+const state = {
+  colors: PRESETS[0].colors.slice(),
+  stops: TEMPLATES[0].stops.slice(),
+  template: 0,
+  preset: 0,
+  theme: 'All',
+  style: 'mesh',
+  blur: 60,
+  sat: 100,
+  con: 100,
+  grain: 0,
+  grainType: 'fine',
+  vignette: 0,
+  glow: 0,
+  distort: 0,
+  bright: 100,
+  hue: 0,
+  aspect: 'auto',
+  pixelSize: 18,
+};
+
+/* ---------- Render ---------- */
+const meshEl = document.getElementById('mesh');
+const noiseEl = document.getElementById('noise');
+const canvasEl = document.getElementById('canvas');
+const vignetteEl = document.getElementById('vignette');
+const glowEl = document.getElementById('glow');
+const warpDisp = document.getElementById('warpDisp');
+
+function hexToRgb(h) {
+  const v = h.replace('#','');
+  return [parseInt(v.slice(0,2),16), parseInt(v.slice(2,4),16), parseInt(v.slice(4,6),16)];
+}
+function rgbStr(r,g,b,a=1){ return `rgba(${r|0},${g|0},${b|0},${a})`; }
+function mixRgb(a, b, t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+
+function sampleAt(x, y) {
+  // distance-weighted blend of color stops at normalized x,y (0-1)
+  let sumW = 0, sum = [0,0,0];
+  for (let i = 0; i < state.colors.length; i++) {
+    const [sx, sy] = state.stops[i % state.stops.length];
+    const dx = (sx/100) - x, dy = (sy/100) - y;
+    const d = Math.sqrt(dx*dx + dy*dy) + 0.001;
+    const w = 1 / Math.pow(d, 3.5);
+    const c = hexToRgb(state.colors[i]);
+    sum[0] += c[0]*w; sum[1] += c[1]*w; sum[2] += c[2]*w;
+    sumW += w;
+  }
+  return [sum[0]/sumW, sum[1]/sumW, sum[2]/sumW];
+}
+
+function renderMesh() {
+  meshEl.innerHTML = '';
+  meshEl.style.background = '';
+  noiseEl.style.opacity = state.grain / 100;
+  noiseEl.dataset.type = state.grainType;
+  vignetteEl.style.opacity = state.vignette / 100;
+  glowEl.style.opacity = state.glow / 100;
+  warpDisp.setAttribute('scale', state.distort * 1.2);
+  meshEl.style.filter = `saturate(${state.sat}%) contrast(${state.con}%) brightness(${state.bright}%) hue-rotate(${state.hue}deg)${state.distort > 0 ? ' url(#warp)' : ''}`;
+
+  const style = state.style;
+
+  if (style === 'mesh' || style === 'sand') {
+    meshEl.style.background = state.colors[0];
+    for (let i = 0; i < state.colors.length; i++) {
+      const [x, y] = state.stops[i % state.stops.length];
+      const blob = document.createElement('div');
+      const size = 55 + (i * 7 % 25);
+      blob.style.left = `calc(${x}% - ${size/2}%)`;
+      blob.style.top = `calc(${y}% - ${size/2}%)`;
+      blob.style.width = size + '%';
+      blob.style.height = size + '%';
+      blob.style.background = state.colors[i];
+      blob.style.filter = `blur(${state.blur}px)`;
+      blob.style.opacity = 0.85;
+      blob.style.mixBlendMode = i === 0 ? 'normal' : 'screen';
+      meshEl.appendChild(blob);
+    }
+    if (style === 'sand') {
+      const sand = document.createElement('div');
+      sand.className = 'sand-grain';
+      meshEl.appendChild(sand);
+      // extra warm tint pass
+      const tint = document.createElement('div');
+      tint.style.cssText = `position:absolute;inset:0;background:radial-gradient(circle at 50% 100%, rgba(180,120,60,.18), transparent 70%);mix-blend-mode:multiply;pointer-events:none;`;
+      meshEl.appendChild(tint);
+    }
+  }
+  else if (style === 'pixel') {
+    const cols = Math.max(6, Math.min(40, state.pixelSize));
+    const rows = Math.round(cols * 0.66);
+    const grid = document.createElement('div');
+    grid.className = 'pixel-grid';
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    const frag = document.createDocumentFragment();
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = (c + 0.5) / cols;
+        const y = (r + 0.5) / rows;
+        const rgb = sampleAt(x, y);
+        const cell = document.createElement('div');
+        cell.style.background = rgbStr(rgb[0], rgb[1], rgb[2]);
+        frag.appendChild(cell);
+      }
+    }
+    grid.appendChild(frag);
+    meshEl.appendChild(grid);
+  }
+  else if (style === 'aurora') {
+    meshEl.style.background = state.colors[state.colors.length - 1];
+    state.colors.forEach((c, i) => {
+      const streak = document.createElement('div');
+      const left = (i / state.colors.length) * 100 + (Math.sin(i)*5);
+      streak.style.cssText = `position:absolute;left:${left - 25}%;top:-20%;width:50%;height:140%;background:linear-gradient(180deg, transparent, ${c} 35%, ${c} 65%, transparent);filter:blur(${state.blur*0.8}px);opacity:.85;mix-blend-mode:screen;border-radius:50%;transform:rotate(${(i%2?15:-15)}deg);`;
+      meshEl.appendChild(streak);
+    });
+  }
+  else if (style === 'linear') {
+    const stops = state.colors.map((c, i) => `${c} ${(i/(state.colors.length-1))*100}%`).join(', ');
+    const bg = document.createElement('div');
+    bg.style.cssText = `position:absolute;inset:0;background:linear-gradient(135deg, ${stops});`;
+    meshEl.appendChild(bg);
+  }
+  else if (style === 'conic') {
+    const stops = state.colors.map((c, i) => `${c} ${(i/state.colors.length)*360}deg`).join(', ');
+    const bg = document.createElement('div');
+    bg.style.cssText = `position:absolute;inset:0;background:conic-gradient(from 0deg at 50% 50%, ${stops}, ${state.colors[0]} 360deg);filter:blur(${state.blur*0.3}px);`;
+    meshEl.appendChild(bg);
+  }
+  else if (style === 'holo') {
+    const bg = document.createElement('div');
+    const stops = state.colors.map((c, i) => `${c} ${(i/state.colors.length)*360}deg`).join(', ');
+    bg.style.cssText = `position:absolute;inset:0;background:conic-gradient(from 45deg at 30% 70%, ${stops}, ${state.colors[0]});filter:blur(${state.blur*0.4}px) saturate(1.4);`;
+    meshEl.appendChild(bg);
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `position:absolute;inset:0;background:linear-gradient(115deg, rgba(255,255,255,.25), rgba(255,255,255,0) 40%, rgba(0,0,0,.15) 100%);mix-blend-mode:overlay;`;
+    meshEl.appendChild(overlay);
+    const sheen = document.createElement('div');
+    sheen.style.cssText = `position:absolute;inset:0;background:linear-gradient(95deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);mix-blend-mode:screen;`;
+    meshEl.appendChild(sheen);
+  }
+  else if (style === 'stripe') {
+    const n = state.colors.length;
+    const stops = state.colors.map((c, i) => `${c} ${(i/n)*100}% ${((i+1)/n)*100}%`).join(', ');
+    const bg = document.createElement('div');
+    bg.style.cssText = `position:absolute;inset:0;background:linear-gradient(135deg, ${stops});`;
+    meshEl.appendChild(bg);
+  }
+  else if (style === 'wave') {
+    meshEl.style.background = state.colors[0];
+    state.colors.forEach((c, i) => {
+      const band = document.createElement('div');
+      const top = (i / state.colors.length) * 100;
+      band.style.cssText = `position:absolute;left:-10%;right:-10%;top:${top - 15}%;height:40%;background:radial-gradient(ellipse at 50% 50%, ${c}, transparent 70%);filter:blur(${state.blur*0.6}px);opacity:.85;mix-blend-mode:screen;`;
+      meshEl.appendChild(band);
+    });
+  }
+
+  // aspect
+  if (state.aspect === 'auto') {
+    canvasEl.style.aspectRatio = '';
+    canvasEl.style.flex = '1';
+  } else {
+    canvasEl.style.aspectRatio = state.aspect;
+    canvasEl.style.flex = '0 1 auto';
+    canvasEl.style.alignSelf = 'center';
+    canvasEl.style.width = '100%';
+    canvasEl.style.maxHeight = '100%';
+  }
+}
+
+function renderStops() {
+  const wrap = document.getElementById('stops');
+  wrap.innerHTML = '';
+  state.colors.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'stop-row';
+    row.innerHTML = `
+      <label class="swatch" style="background:${c}">
+        <input type="color" value="${c}" data-i="${i}" />
+      </label>
+      <span class="stop-hex">${c.toUpperCase()}</span>
+      <button class="stop-remove" data-i="${i}" title="Remove">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    `;
+    wrap.appendChild(row);
+  });
+  document.getElementById('stopCount').textContent = state.colors.length;
+
+  wrap.querySelectorAll('input[type=color]').forEach(inp => {
+    inp.addEventListener('input', e => {
+      state.colors[+e.target.dataset.i] = e.target.value;
+      renderMesh(); renderStops(); renderHandles(); renderStyles();
+    });
+    inp.addEventListener('change', () => snapshot());
+  });
+  wrap.querySelectorAll('.stop-remove').forEach(b => {
+    b.addEventListener('click', e => {
+      const i = +e.currentTarget.dataset.i;
+      if (state.colors.length <= 2) return;
+      state.colors.splice(i, 1);
+      renderMesh(); renderStops(); renderHandles(); renderStyles();
+      snapshot();
+    });
+  });
+}
+
+function renderPresets() {
+  const grid = document.getElementById('presets');
+  grid.innerHTML = '';
+  const list = PRESETS.filter(p => state.theme === 'All' || p.theme === state.theme);
+  document.getElementById('presetCount').textContent = list.length;
+  list.forEach((p, i) => {
+    const realIdx = PRESETS.indexOf(p);
+    const el = document.createElement('div');
+    el.className = 'preset' + (realIdx === state.preset ? ' active' : '');
+    el.style.background = buildBgForThumb(p.colors);
+    el.innerHTML = `<div class="name">${p.name}</div>`;
+    el.addEventListener('click', () => {
+      state.preset = realIdx;
+      state.colors = p.colors.slice();
+      renderMesh(); renderStops(); renderPresets(); renderStyles(); renderTemplates(); renderHandles();
+      snapshot();
+    });
+    grid.appendChild(el);
+  });
+}
+
+function buildBgForThumb(colors) {
+  const positions = [[20,20],[80,20],[50,50],[20,80],[80,80]];
+  const layers = colors.slice(0, 5).map((c, i) => {
+    const [x, y] = positions[i % positions.length];
+    return `radial-gradient(at ${x}% ${y}%, ${c} 0px, transparent 50%)`;
+  });
+  return layers.join(', ') + `, ${colors[0]}`;
+}
+
+function buildStyleThumb(styleId, colors) {
+  const c = colors;
+  switch (styleId) {
+    case 'mesh':
+      return buildBgForThumb(c);
+    case 'pixel': {
+      // 6x4 grid of swatches via conic? simpler: linear-gradient stripes both directions
+      const cells = [];
+      for (let i = 0; i < 4; i++) cells.push(c[i % c.length]);
+      return `linear-gradient(90deg, ${cells.join(', ')})`;
+    }
+    case 'sand':
+      return buildBgForThumb(c);
+    case 'aurora':
+      return `linear-gradient(180deg, ${c[0]}, ${c[1]} 30%, ${c[2]} 50%, ${c[3] || c[0]} 70%, ${c[4] || c[1]})`;
+    case 'linear':
+      return `linear-gradient(135deg, ${c.join(', ')})`;
+    case 'conic':
+      return `conic-gradient(from 0deg, ${c.join(', ')}, ${c[0]})`;
+    case 'holo':
+      return `conic-gradient(from 45deg at 30% 70%, ${c.join(', ')}, ${c[0]})`;
+    case 'stripe': {
+      const n = c.length;
+      return `linear-gradient(135deg, ${c.map((x,i)=>`${x} ${(i/n)*100}% ${((i+1)/n)*100}%`).join(', ')})`;
+    }
+    case 'wave':
+      return `linear-gradient(180deg, ${c.join(', ')})`;
+  }
+  return buildBgForThumb(c);
+}
+
+function renderStyles() {
+  const wrap = document.getElementById('styles');
+  wrap.innerHTML = '';
+  document.getElementById('styleCount').textContent = STYLES.length;
+  STYLES.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'style-tile' + (state.style === s.id ? ' active' : '');
+    const preview = document.createElement('div');
+    preview.className = 'preview';
+    preview.style.background = buildStyleThumb(s.id, state.colors);
+    if (s.id === 'sand') {
+      preview.style.boxShadow = 'inset 0 0 0 100px rgba(180,140,80,.08)';
+      preview.style.filter = 'contrast(1.05) saturate(.9)';
+    }
+    el.appendChild(preview);
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = s.name;
+    el.appendChild(label);
+    el.addEventListener('click', () => {
+      state.style = s.id;
+      renderMesh(); renderStyles();
+      snapshot();
+    });
+    wrap.appendChild(el);
+  });
+}
+
+function renderThemes() {
+  const wrap = document.getElementById('themes');
+  wrap.innerHTML = '';
+  document.getElementById('themeCount').textContent = THEMES.length;
+  THEMES.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'chip' + (state.theme === t ? ' active' : '');
+    el.textContent = t;
+    el.addEventListener('click', () => {
+      state.theme = t;
+      renderThemes(); renderPresets();
+    });
+    wrap.appendChild(el);
+  });
+}
+
+function renderTemplates() {
+  const wrap = document.getElementById('templates');
+  wrap.innerHTML = '';
+  TEMPLATES.forEach((t, i) => {
+    const el = document.createElement('div');
+    el.className = 'tpl' + (state.template === i ? ' active' : '');
+    el.style.background = buildBgForThumbWithStops(state.colors, t.stops);
+    el.innerHTML = `<div class="tpl-label">${t.name}</div>`;
+    el.addEventListener('click', () => {
+      state.template = i;
+      state.stops = t.stops.slice();
+      renderMesh(); renderTemplates(); renderHandles();
+      snapshot();
+    });
+    wrap.appendChild(el);
+  });
+}
+function buildBgForThumbWithStops(colors, stops) {
+  return stops.map((s, i) => `radial-gradient(at ${s[0]}% ${s[1]}%, ${colors[i % colors.length]} 0px, transparent 50%)`).join(', ') + `, ${colors[0]}`;
+}
+
+/* ---------- Controls ---------- */
+function bindRange(id, key, suffix='') {
+  const el = document.getElementById(id);
+  const val = document.getElementById(id + 'Val');
+  el.addEventListener('input', e => {
+    state[key] = +e.target.value;
+    val.textContent = state[key] + suffix;
+    renderMesh();
+  });
+}
+bindRange('blur', 'blur');
+bindRange('sat', 'sat', '%');
+bindRange('con', 'con', '%');
+bindRange('grain', 'grain', '%');
+bindRange('vignette', 'vignette', '%');
+bindRange('glow', 'glow', '%');
+bindRange('distort', 'distort', '%');
+bindRange('bright', 'bright', '%');
+bindRange('hue', 'hue', '°');
+
+document.getElementById('grainType').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#grainType .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.grainType = c.dataset.grain;
+  renderMesh();
+});
+
+document.getElementById('addStop').addEventListener('click', () => {
+  if (state.colors.length >= 7) return;
+  const c = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+  state.colors.push(c);
+  // also extend stops if needed
+  if (state.stops.length < state.colors.length) {
+    state.stops.push([20 + Math.random()*60, 20 + Math.random()*60]);
+  }
+  renderMesh(); renderStops(); renderTemplates(); renderHandles(); renderStyles();
+  snapshot();
+});
+
+document.getElementById('aspect').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#aspect .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.aspect = c.dataset.ratio;
+  renderMesh();
+});
+
+/* ---------- Randomize ---------- */
+function randomize() {
+  const p = PRESETS[Math.floor(Math.random() * PRESETS.length)];
+  const t = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)];
+  state.preset = PRESETS.indexOf(p);
+  state.template = TEMPLATES.indexOf(t);
+  state.colors = p.colors.slice();
+  // jitter stops
+  state.stops = t.stops.map(([x,y]) => [
+    Math.max(5, Math.min(95, x + (Math.random()*20 - 10))),
+    Math.max(5, Math.min(95, y + (Math.random()*20 - 10))),
+  ]);
+  renderMesh(); renderStops(); renderPresets(); renderTemplates(); renderStyles();
+}
+document.getElementById('randomBtn').addEventListener('click', randomize);
+
+/* ---------- Export formats ---------- */
+function buildCss() {
+  const layers = state.colors.map((c, i) => {
+    const [x, y] = state.stops[i % state.stops.length];
+    return `    radial-gradient(at ${x.toFixed(0)}% ${y.toFixed(0)}%, ${c} 0px, transparent 50%)`;
+  }).join(',\n');
+  return `background-color: ${state.colors[0]};\nbackground-image:\n${layers};\nfilter: saturate(${state.sat}%) contrast(${state.con}%) brightness(${state.bright}%) hue-rotate(${state.hue}deg);`;
+}
+
+function buildTailwind() {
+  const layers = state.colors.map((c, i) => {
+    const [x, y] = state.stops[i % state.stops.length];
+    return `radial-gradient(at ${x.toFixed(0)}% ${y.toFixed(0)}%, ${c} 0px, transparent 50%)`;
+  }).join(', ');
+  return `// tailwind.config.js\nmodule.exports = {\n  theme: {\n    extend: {\n      backgroundImage: {\n        'mesh': "${layers}",\n      },\n      backgroundColor: {\n        'mesh-base': '${state.colors[0]}',\n      },\n    },\n  },\n}\n\n// usage: <div class="bg-mesh-base bg-mesh w-full h-full" />`;
+}
+
+function buildFigma() {
+  return state.colors.map((c, i) => {
+    const [x, y] = state.stops[i % state.stops.length];
+    const r = hexToRgb(c);
+    return `Fill ${i+1}: Radial Gradient · center (${x.toFixed(0)}%, ${y.toFixed(0)}%) · RGB(${r[0]|0}, ${r[1]|0}, ${r[2]|0}) → transparent`;
+  }).join('\n');
+}
+
+function buildSvg(w = 1920, h = 1080) {
+  const defs = state.colors.map((c, i) => {
+    const [x, y] = state.stops[i % state.stops.length];
+    return `<radialGradient id="g${i}" cx="${x}%" cy="${y}%" r="55%"><stop offset="0%" stop-color="${c}" stop-opacity="0.85"/><stop offset="100%" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+  }).join('');
+  const rects = state.colors.map((_, i) => `<rect width="100%" height="100%" fill="url(#g${i})" style="mix-blend-mode:${i===0?'normal':'screen'}"/>`).join('');
+  const filter = `saturate(${state.sat}%) contrast(${state.con}%) brightness(${state.bright}%) hue-rotate(${state.hue}deg)`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><defs>${defs}</defs><rect width="100%" height="100%" fill="${state.colors[0]}"/><g style="filter:${filter}">${rects}</g></svg>`;
+}
+
+function exportPngAt(w, h, name) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = state.colors[0];
+  ctx.fillRect(0, 0, w, h);
+
+  state.colors.forEach((c, i) => {
+    const [px, py] = state.stops[i % state.stops.length];
+    const cx = (px/100)*w, cy = (py/100)*h;
+    const r = Math.max(w, h) * 0.55;
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    grad.addColorStop(0, c);
+    grad.addColorStop(1, c + '00');
+    if (i > 0) ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  });
+  ctx.globalCompositeOperation = 'source-over';
+
+  const out = document.createElement('canvas');
+  out.width = w; out.height = h;
+  const octx = out.getContext('2d');
+  octx.filter = `saturate(${state.sat}%) contrast(${state.con}%) brightness(${state.bright}%) hue-rotate(${state.hue}deg)`;
+  octx.drawImage(canvas, 0, 0);
+
+  // grain
+  if (state.grain > 0) {
+    const grainCanvas = document.createElement('canvas');
+    grainCanvas.width = w; grainCanvas.height = h;
+    const gctx = grainCanvas.getContext('2d');
+    const img = gctx.createImageData(w, h);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = (Math.random() - 0.5) * 255;
+      img.data[i] = img.data[i+1] = img.data[i+2] = 128 + v;
+      img.data[i+3] = (state.grain / 100) * 180;
+    }
+    gctx.putImageData(img, 0, 0);
+    octx.globalCompositeOperation = 'overlay';
+    octx.drawImage(grainCanvas, 0, 0);
+    octx.globalCompositeOperation = 'source-over';
+  }
+  // vignette
+  if (state.vignette > 0) {
+    const vg = octx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.4, w/2, h/2, Math.max(w,h)*0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, `rgba(0,0,0,${state.vignette/100})`);
+    octx.fillStyle = vg;
+    octx.fillRect(0, 0, w, h);
+  }
+
+  const link = document.createElement('a');
+  link.download = `${name || 'mesh'}-${w}x${h}.png`;
+  link.href = out.toDataURL('image/png');
+  link.click();
+}
+
+const EXPORT_SIZES = {
+  'png-1080': [1920, 1080, 'mesh-hd'],
+  'png-4k':   [3840, 2160, 'mesh-4k'],
+  'png-square': [2048, 2048, 'mesh-square'],
+  'og':       [1200, 630, 'mesh-og'],
+  'twitter':  [1500, 500, 'mesh-x-header'],
+  'iphone':   [1170, 2532, 'mesh-iphone'],
+  'notion':   [1500, 600, 'mesh-notion'],
+  'podcast':  [3000, 3000, 'mesh-podcast'],
+};
+
+document.getElementById('exportMenu').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-export]');
+  if (!btn) return;
+  const kind = btn.dataset.export;
+  document.querySelector('.dropdown').classList.remove('open');
+  if (kind in EXPORT_SIZES) {
+    const [w, h, n] = EXPORT_SIZES[kind];
+    exportPngAt(w, h, n);
+    showToast(`Exported ${w}×${h}`);
+  } else if (kind === 'svg') {
+    const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+    const link = document.createElement('a');
+    link.download = `mesh-${Date.now()}.svg`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    showToast('SVG exported');
+  } else if (kind === 'css') {
+    navigator.clipboard.writeText(buildCss()).then(() => showToast('CSS copied'));
+  } else if (kind === 'tailwind') {
+    navigator.clipboard.writeText(buildTailwind()).then(() => showToast('Tailwind config copied'));
+  } else if (kind === 'figma') {
+    navigator.clipboard.writeText(buildFigma()).then(() => showToast('Figma fills copied'));
+  }
+});
+
+document.getElementById('exportBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.querySelector('.dropdown').classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.dropdown')) document.querySelector('.dropdown').classList.remove('open');
+});
+
+/* ---------- URL state ---------- */
+function serializeState() {
+  const compact = {
+    c: state.colors,
+    s: state.stops.map(([x,y]) => [Math.round(x), Math.round(y)]),
+    st: state.style,
+    b: state.blur, sat: state.sat, con: state.con,
+    g: state.grain, gt: state.grainType,
+    v: state.vignette, gl: state.glow, d: state.distort,
+    br: state.bright, h: state.hue,
+    a: state.aspect,
+  };
+  return btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
+}
+function deserializeState(hash) {
+  try {
+    const o = JSON.parse(decodeURIComponent(escape(atob(hash))));
+    if (o.c) state.colors = o.c;
+    if (o.s) state.stops = o.s;
+    if (o.st) state.style = o.st;
+    if (typeof o.b === 'number') state.blur = o.b;
+    if (typeof o.sat === 'number') state.sat = o.sat;
+    if (typeof o.con === 'number') state.con = o.con;
+    if (typeof o.g === 'number') state.grain = o.g;
+    if (o.gt) state.grainType = o.gt;
+    if (typeof o.v === 'number') state.vignette = o.v;
+    if (typeof o.gl === 'number') state.glow = o.gl;
+    if (typeof o.d === 'number') state.distort = o.d;
+    if (typeof o.br === 'number') state.bright = o.br;
+    if (typeof o.h === 'number') state.hue = o.h;
+    if (o.a) state.aspect = o.a;
+    return true;
+  } catch (e) { return false; }
+}
+
+document.getElementById('shareBtn').addEventListener('click', () => {
+  const url = location.origin + location.pathname + '#' + serializeState();
+  navigator.clipboard.writeText(url).then(() => showToast('Share link copied'));
+});
+
+/* ---------- History (undo/redo) ---------- */
+const history = { stack: [], idx: -1, suspend: false };
+function snapshot() {
+  if (history.suspend) return;
+  history.stack = history.stack.slice(0, history.idx + 1);
+  history.stack.push(serializeState());
+  if (history.stack.length > 50) history.stack.shift();
+  history.idx = history.stack.length - 1;
+  updateUndoButtons();
+}
+function applyHistory(idx) {
+  if (idx < 0 || idx >= history.stack.length) return;
+  history.idx = idx;
+  history.suspend = true;
+  deserializeState(history.stack[idx]);
+  syncControlsFromState();
+  renderAll();
+  history.suspend = false;
+  updateUndoButtons();
+}
+function updateUndoButtons() {
+  document.getElementById('undoBtn').disabled = history.idx <= 0;
+  document.getElementById('redoBtn').disabled = history.idx >= history.stack.length - 1;
+}
+document.getElementById('undoBtn').addEventListener('click', () => applyHistory(history.idx - 1));
+document.getElementById('redoBtn').addEventListener('click', () => applyHistory(history.idx + 1));
+
+/* ---------- Sync control DOM from state ---------- */
+function syncControlsFromState() {
+  const set = (id, v, suffix='') => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = v;
+    const valEl = document.getElementById(id + 'Val');
+    if (valEl) valEl.textContent = v + suffix;
+  };
+  set('blur', state.blur);
+  set('sat', state.sat, '%');
+  set('con', state.con, '%');
+  set('grain', state.grain, '%');
+  set('vignette', state.vignette, '%');
+  set('glow', state.glow, '%');
+  set('distort', state.distort, '%');
+  set('bright', state.bright, '%');
+  set('hue', state.hue, '°');
+  document.querySelectorAll('#grainType .chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.grain === state.grainType);
+  });
+  document.querySelectorAll('#aspect .chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.ratio === state.aspect);
+  });
+}
+
+function renderAll() {
+  renderMesh(); renderStops(); renderPresets(); renderStyles(); renderTemplates(); renderHandles();
+}
+
+/* ---------- Drag handles on canvas ---------- */
+const handlesEl = document.getElementById('handles');
+function renderHandles() {
+  handlesEl.innerHTML = '';
+  handlesEl.classList.add('show');
+  state.colors.forEach((c, i) => {
+    const [x, y] = state.stops[i % state.stops.length];
+    const h = document.createElement('div');
+    h.className = 'handle';
+    h.style.left = x + '%';
+    h.style.top = y + '%';
+    h.style.background = c;
+    h.dataset.i = i;
+    handlesEl.appendChild(h);
+  });
+}
+
+let dragIdx = -1;
+handlesEl.addEventListener('pointerdown', e => {
+  const t = e.target.closest('.handle');
+  if (!t) return;
+  dragIdx = +t.dataset.i;
+  t.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+handlesEl.addEventListener('pointermove', e => {
+  if (dragIdx < 0) return;
+  const rect = canvasEl.getBoundingClientRect();
+  const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+  const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+  state.stops[dragIdx % state.stops.length] = [x, y];
+  renderMesh();
+  const h = handlesEl.children[dragIdx];
+  if (h) { h.style.left = x + '%'; h.style.top = y + '%'; }
+});
+handlesEl.addEventListener('pointerup', () => {
+  if (dragIdx >= 0) { dragIdx = -1; snapshot(); }
+});
+
+/* ---------- Library (localStorage) ---------- */
+const LIB_KEY = 'mesh-studio-library-v1';
+function loadLibrary() { try { return JSON.parse(localStorage.getItem(LIB_KEY) || '[]'); } catch { return []; } }
+function saveLibrary(lib) { localStorage.setItem(LIB_KEY, JSON.stringify(lib)); }
+
+function renderLibrary() {
+  const lib = loadLibrary();
+  const sec = document.getElementById('librarySec');
+  const wrap = document.getElementById('library');
+  sec.style.display = lib.length ? 'block' : 'none';
+  document.getElementById('libraryCount').textContent = lib.length;
+  wrap.innerHTML = '';
+  lib.forEach((item, idx) => {
+    const el = document.createElement('div');
+    el.className = 'preset library-item';
+    el.style.background = buildBgForThumb(item.c);
+    el.innerHTML = `<div class="name">${item.name || 'Saved'}</div><button class="del" data-i="${idx}" title="Delete">×</button>`;
+    el.addEventListener('click', e => {
+      if (e.target.classList.contains('del')) return;
+      deserializeState(item.hash);
+      syncControlsFromState();
+      renderAll();
+      snapshot();
+    });
+    wrap.appendChild(el);
+  });
+  wrap.querySelectorAll('.del').forEach(b => b.addEventListener('click', e => {
+    const lib = loadLibrary();
+    lib.splice(+e.target.dataset.i, 1);
+    saveLibrary(lib);
+    renderLibrary();
+  }));
+}
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const lib = loadLibrary();
+  lib.unshift({ name: `Gradient ${lib.length + 1}`, c: state.colors.slice(), hash: serializeState(), t: Date.now() });
+  if (lib.length > 30) lib.length = 30;
+  saveLibrary(lib);
+  renderLibrary();
+  showToast('Saved to library');
+});
+
+/* ---------- Image → palette extraction ---------- */
+const dropEl = document.getElementById('dropzone');
+let dragDepth = 0;
+window.addEventListener('dragenter', e => {
+  if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+  dragDepth++;
+  dropEl.classList.add('show');
+});
+window.addEventListener('dragover', e => { e.preventDefault(); });
+window.addEventListener('dragleave', e => {
+  dragDepth--;
+  if (dragDepth <= 0) { dragDepth = 0; dropEl.classList.remove('show'); }
+});
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  dragDepth = 0;
+  dropEl.classList.remove('show');
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  extractPalette(file);
+});
+
+function extractPalette(file) {
+  const img = new Image();
+  img.onload = () => {
+    const W = 64, H = Math.round(64 * (img.height / img.width));
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, W, H);
+    const data = ctx.getImageData(0, 0, W, H).data;
+    // simple median-cut-ish: bucket by quantized hue, pick 5 most populous
+    const buckets = new Map();
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i+1], b = data[i+2];
+      const key = `${r>>5},${g>>5},${b>>5}`;
+      const v = buckets.get(key) || { r:0, g:0, b:0, n:0 };
+      v.r += r; v.g += g; v.b += b; v.n++;
+      buckets.set(key, v);
+    }
+    const sorted = [...buckets.values()].sort((a,b) => b.n - a.n).slice(0, 8);
+    // pick 5 spaced ones
+    const palette = [];
+    for (const b of sorted) {
+      const rr = Math.round(b.r/b.n), gg = Math.round(b.g/b.n), bb = Math.round(b.b/b.n);
+      const hex = '#' + [rr,gg,bb].map(x => x.toString(16).padStart(2,'0')).join('');
+      if (palette.every(p => colorDist(hex, p) > 25)) palette.push(hex);
+      if (palette.length >= 5) break;
+    }
+    while (palette.length < 3 && sorted.length) {
+      const b = sorted.shift();
+      const rr = Math.round(b.r/b.n), gg = Math.round(b.g/b.n), bb = Math.round(b.b/b.n);
+      palette.push('#' + [rr,gg,bb].map(x => x.toString(16).padStart(2,'0')).join(''));
+    }
+    state.colors = palette;
+    renderAll();
+    snapshot();
+    showToast(`Extracted ${palette.length} colors`);
+  };
+  img.src = URL.createObjectURL(file);
+}
+function colorDist(a, b) {
+  const ar = hexToRgb(a), br = hexToRgb(b);
+  return Math.sqrt((ar[0]-br[0])**2 + (ar[1]-br[1])**2 + (ar[2]-br[2])**2);
+}
+
+/* ---------- Animation ---------- */
+let animRaf = 0, animBaseStops = null, animStart = 0;
+function toggleAnimate() {
+  if (animRaf) {
+    cancelAnimationFrame(animRaf);
+    animRaf = 0;
+    state.stops = animBaseStops.slice();
+    document.getElementById('animateLabel').textContent = 'Animate';
+    renderMesh(); renderHandles();
+    return;
+  }
+  animBaseStops = state.stops.map(s => s.slice());
+  animStart = performance.now();
+  document.getElementById('animateLabel').textContent = 'Stop';
+  const tick = (t) => {
+    if (!animRaf) return;
+    const dt = (t - animStart) / 1000;
+    state.stops = animBaseStops.map(([x,y], i) => [
+      Math.max(5, Math.min(95, x + Math.sin(dt * 0.4 + i) * 12)),
+      Math.max(5, Math.min(95, y + Math.cos(dt * 0.35 + i * 1.3) * 12)),
+    ]);
+    renderMesh(); renderHandles();
+    animRaf = requestAnimationFrame(tick);
+  };
+  animRaf = requestAnimationFrame(tick);
+}
+document.getElementById('animateBtn').addEventListener('click', toggleAnimate);
+
+/* ---------- Snapshot triggers ---------- */
+['blur','sat','con','grain','vignette','glow','distort','bright','hue'].forEach(id => {
+  document.getElementById(id).addEventListener('change', snapshot);
+});
+
+/* ---------- Toast ---------- */
+const toastEl = document.getElementById('toast');
+let toastTimer;
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
+}
+
+/* ---------- Keyboard ---------- */
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, textarea')) return;
+  const meta = e.metaKey || e.ctrlKey;
+  if (meta && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) applyHistory(history.idx + 1);
+    else applyHistory(history.idx - 1);
+    return;
+  }
+  if (meta && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    document.getElementById('saveBtn').click();
+    return;
+  }
+  if (e.key === 'r' || e.key === 'R') { randomize(); snapshot(); }
+  if (e.key === 'a' || e.key === 'A') toggleAnimate();
+  if (e.key === 'c' || e.key === 'C') {
+    navigator.clipboard.writeText(buildCss()).then(() => showToast('CSS copied'));
+  }
+});
+
+/* ---------- Snapshot on user changes ---------- */
+// wrap randomize to snapshot
+const _origRandomBtn = document.getElementById('randomBtn');
+_origRandomBtn.addEventListener('click', () => setTimeout(snapshot, 0));
+
+/* ---------- Init ---------- */
+if (location.hash.length > 1) deserializeState(location.hash.slice(1));
+syncControlsFromState();
+renderStyles();
+renderThemes();
+renderPresets();
+renderTemplates();
+renderStops();
+renderMesh();
+renderHandles();
+renderLibrary();
+snapshot();
+</script>
+</body>
+</html>

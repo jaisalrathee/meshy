@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SVG Waves · meshy.fun</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A section divider.</div>
+      <button class="btn" id="newSeedBtn">New variation</button>
+      <button class="btn" id="copyBtn">Copy SVG</button>
+      <button class="btn primary" id="downloadBtn">Download SVG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+    <div class="canvas-bottom">
+      <div class="output-wrap"><pre class="output" id="svgOut"></pre><button class="copy-btn" id="copyBtn2">Copy</button></div>
+    </div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 24px; background: #fafafa; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.1); border-radius: 8px; display: block; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const COLOR_PRESETS = {
+  ocean: ['#0EA5E9','#0284C7','#075985'],
+  sunset: ['#FF6B6B','#FFA07A','#FFD56B'],
+  iris: ['#667EEA','#764BA2','#F093FB'],
+  mint: ['#10B981','#34D399','#6EE7B7'],
+  rose: ['#E11D48','#FB7185','#FECDD3'],
+  mono: ['#1A1A1A','#404040','#737373'],
+};
+const STYLES = ['gentle','sharp','sine','arc','steps','spiky'];
+
+const state = { palette: 'ocean', style: 'gentle', layers: 3, amplitude: 50, frequency: 1, flipped: false, seed: 2, w: 1200, h: 400 };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Waves')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Style</div>
+      <div class="chips" id="styleChips">
+        ${STYLES.map(s => `<div class="chip ${s==='gentle'?'active':''}" data-s="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Colors</div>
+      <div class="chips" id="palChips">
+        ${Object.keys(COLOR_PRESETS).map(k => `<div class="chip ${k==='ocean'?'active':''}" data-p="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Aspect</div>
+      <div class="chips" id="aspectChips">
+        <div class="chip active" data-a="3/1">3:1</div>
+        <div class="chip" data-a="4/1">4:1</div>
+        <div class="chip" data-a="2/1">2:1</div>
+        <div class="chip" data-a="1/1">1:1</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Layers</label><span class="val" id="layersVal">3</span></div>
+      <input type="range" id="layers" min="1" max="5" value="3">
+      <div class="row" style="margin-top:14px"><label>Amplitude</label><span class="val" id="amplitudeVal">50</span></div>
+      <input type="range" id="amplitude" min="10" max="120" value="50">
+      <div class="row" style="margin-top:14px"><label>Frequency</label><span class="val" id="frequencyVal">1.0</span></div>
+      <input type="range" id="frequency" min="5" max="40" value="10">
+    </div>
+    <div class="sec">
+      <div class="chips"><div class="chip" id="flipChip">Flip vertical</div></div>
+    </div>
+  </div>
+`;
+
+function rand(seed) { return () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }; }
+
+function wavePath(W, H, amp, freq, offset, style, r) {
+  const baseline = H * 0.5 + offset;
+  const points = [];
+  const steps = 40;
+  for (let i = 0; i <= steps; i++) {
+    const x = (i/steps) * W;
+    let y;
+    const phase = (i/steps) * freq * Math.PI * 2;
+    switch(style) {
+      case 'gentle': y = baseline + Math.sin(phase) * amp + Math.sin(phase*0.4) * amp*0.3; break;
+      case 'sharp': y = baseline + Math.sin(phase) * amp * (0.5 + Math.sin(phase*2)*0.3); break;
+      case 'sine': y = baseline + Math.sin(phase) * amp; break;
+      case 'arc': y = baseline + Math.cos(phase*0.5) * amp - amp*0.3; break;
+      case 'steps': y = baseline + Math.round(Math.sin(phase)*3) * (amp/3); break;
+      case 'spiky': y = baseline + (Math.sin(phase*2) > 0 ? amp : -amp) * 0.6 + r()*amp*0.3; break;
+    }
+    points.push([x, y]);
+  }
+  let d = `M 0 ${H} L 0 ${points[0][1].toFixed(1)} `;
+  if (style === 'gentle' || style === 'sine' || style === 'arc') {
+    // smooth curve
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i], p1 = points[i+1];
+      const cx = (p0[0] + p1[0]) / 2;
+      d += `Q ${p0[0].toFixed(1)} ${p0[1].toFixed(1)} ${cx.toFixed(1)} ${((p0[1]+p1[1])/2).toFixed(1)} `;
+    }
+    d += `T ${W} ${points[points.length-1][1].toFixed(1)} `;
+  } else {
+    for (let i = 1; i < points.length; i++) d += `L ${points[i][0].toFixed(1)} ${points[i][1].toFixed(1)} `;
+  }
+  d += `L ${W} ${H} Z`;
+  return d;
+}
+
+function buildSvg() {
+  const W = state.w, H = state.h;
+  const colors = COLOR_PRESETS[state.palette];
+  const r = rand(state.seed);
+  let layers = '';
+  for (let i = 0; i < state.layers; i++) {
+    const t = state.layers === 1 ? 1 : i / (state.layers - 1);
+    const col = colors[Math.floor(t * (colors.length-1))];
+    const amp = state.amplitude * (1 - i*0.15);
+    const offset = (state.layers - i) * 30 - 60 + r()*20;
+    const freq = (state.frequency/10) * (1 + i*0.2);
+    const path = wavePath(W, H, amp, freq, offset, state.style, r);
+    layers += `<path d="${path}" fill="${col}" opacity="${(0.4 + i*0.2).toFixed(2)}"/>`;
+  }
+  const flip = state.flipped ? ` transform="translate(0 ${H}) scale(1 -1)"` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><g${flip}>${layers}</g></svg>`;
+}
+
+function render() {
+  const svg = buildSvg();
+  document.getElementById('outSvg').outerHTML = svg.replace('<svg ', '<svg id="outSvg" ');
+  document.getElementById('svgOut').textContent = svg;
+}
+
+function setAspect(a) {
+  const [aw,ah] = a.split('/').map(Number);
+  state.w = 1200; state.h = Math.round(1200 * (ah/aw));
+}
+
+function bindRange(id,key,suffix='') {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = +e.target.value;
+    document.getElementById(id+'Val').textContent = state[key]+suffix;
+    render();
+  });
+}
+bindRange('layers','layers'); bindRange('amplitude','amplitude');
+document.getElementById('frequency').addEventListener('input', e => {
+  state.frequency = +e.target.value;
+  document.getElementById('frequencyVal').textContent = (state.frequency/10).toFixed(1);
+  render();
+});
+document.getElementById('flipChip').addEventListener('click', e => { state.flipped = !state.flipped; e.target.classList.toggle('active', state.flipped); render(); });
+['styleChips','palChips'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    document.querySelectorAll(`#${id} .chip`).forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    state[id === 'styleChips' ? 'style' : 'palette'] = c.dataset[id === 'styleChips' ? 's' : 'p'];
+    render();
+  });
+});
+document.getElementById('aspectChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#aspectChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); setAspect(c.dataset.a); render();
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); render(); });
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(buildSvg(), 'SVG copied'));
+document.getElementById('copyBtn2').addEventListener('click', () => meshy.copy(buildSvg(), 'SVG copied'));
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const link = document.createElement('a'); link.download = 'wave-divider.svg'; link.href = URL.createObjectURL(blob); link.click();
+});
+
+setAspect('3/1'); render();
+</script>
+</body>
+</html>

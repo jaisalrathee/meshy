@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Blob Generator · meshy.fun</title>
+<meta name="description" content="Organic SVG blobs with adjustable complexity and randomness. Download SVG." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">An organic shape.</div>
+      <button class="btn" id="newBtn">New seed</button>
+      <button class="btn" id="downloadBtn">Download SVG</button>
+      <button class="btn primary" id="copyBtn">Copy SVG</button>
+    </div>
+    <div class="canvas" id="canvas"></div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 60px; }
+  .canvas svg { max-width: 100%; max-height: 100%; }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const state = { complexity: 6, randomness: 35, fill: '#6BA6FF', fill2: '#B48CFF', style: 'solid', seed: Math.random()*1000 };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Blob')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Variations</div>
+      <div class="thumb-grid" id="variations"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Style</div>
+      <div class="chips" id="styleChips">
+        <div class="chip active" data-s="solid">Solid</div>
+        <div class="chip" data-s="gradient">Gradient</div>
+        <div class="chip" data-s="outline">Outline</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml('Click <strong>New seed</strong> for a new shape')}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Complexity</label><span class="val" id="complexityVal">6</span></div>
+      <input type="range" id="complexity" min="3" max="12" value="6">
+      <div class="row" style="margin-top:14px"><label>Randomness</label><span class="val" id="randomnessVal">35%</span></div>
+      <input type="range" id="randomness" min="0" max="80" value="35">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Color</div>
+      <div class="row"><label>Fill</label></div>
+      <input type="color" id="fill" value="#6BA6FF">
+      <div class="row" id="fill2Row" style="margin-top:12px;display:none"><label>Second color</label></div>
+      <input type="color" id="fill2" value="#B48CFF" style="display:none">
+    </div>
+  </div>
+`;
+
+function genBlob(seed) {
+  const n = state.complexity, r = 100, cx = 150, cy = 150;
+  const variance = state.randomness/100;
+  const points = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (i/n) * Math.PI * 2;
+    const sd = Math.sin(seed + i * 12.345) * 10000;
+    const noise = (sd - Math.floor(sd)) - 0.5;
+    const rad = r * (1 + noise * variance);
+    points.push([cx + Math.cos(angle) * rad, cy + Math.sin(angle) * rad]);
+  }
+  let path = `M ${points[0][0]},${points[0][1]} `;
+  for (let i = 0; i < n; i++) {
+    const p0 = points[i], p1 = points[(i+1)%n], p2 = points[(i+2)%n], pPrev = points[(i+n-1)%n];
+    const c0x = p0[0] + (p1[0] - pPrev[0])/6, c0y = p0[1] + (p1[1] - pPrev[1])/6;
+    const c1x = p1[0] - (p2[0] - p0[0])/6, c1y = p1[1] - (p2[1] - p0[1])/6;
+    path += `C ${c0x.toFixed(1)},${c0y.toFixed(1)} ${c1x.toFixed(1)},${c1y.toFixed(1)} ${p1[0].toFixed(1)},${p1[1].toFixed(1)} `;
+  }
+  return path + 'Z';
+}
+
+function buildSvg(seed = state.seed, size = 300) {
+  const path = genBlob(seed);
+  let fillDef = '', fillAttr = state.fill;
+  if (state.style === 'gradient') {
+    fillDef = `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${state.fill}"/><stop offset="100%" stop-color="${state.fill2}"/></linearGradient></defs>`;
+    fillAttr = 'url(#g)';
+  }
+  const attrs = state.style === 'outline'
+    ? `stroke="${state.fill}" stroke-width="3" fill="none"`
+    : `fill="${fillAttr}"`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="${size}" height="${size}">${fillDef}<path d="${path}" ${attrs}/></svg>`;
+}
+
+function renderVariations() {
+  const wrap = document.getElementById('variations');
+  wrap.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const seed = state.seed + i * 7.31;
+    const el = document.createElement('div');
+    el.className = 'thumb-card';
+    el.style.background = '#fff';
+    el.innerHTML = buildSvg(seed, 100).replace('<svg', '<svg style="width:100%;height:100%"');
+    el.addEventListener('click', () => { state.seed = seed; renderVariations(); render(); });
+    wrap.appendChild(el);
+  }
+}
+
+function render() {
+  document.getElementById('canvas').innerHTML = buildSvg();
+  const showFill2 = state.style === 'gradient';
+  document.getElementById('fill2Row').style.display = showFill2 ? 'flex' : 'none';
+  document.getElementById('fill2').style.display = showFill2 ? 'block' : 'none';
+}
+
+function bindRange(id, key, suffix='') {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = +e.target.value;
+    document.getElementById(id+'Val').textContent = state[key]+suffix;
+    renderVariations(); render();
+  });
+}
+bindRange('complexity','complexity'); bindRange('randomness','randomness','%');
+
+document.getElementById('fill').addEventListener('input', e => { state.fill = e.target.value; renderVariations(); render(); });
+document.getElementById('fill2').addEventListener('input', e => { state.fill2 = e.target.value; renderVariations(); render(); });
+document.getElementById('styleChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#styleChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.style = c.dataset.s;
+  renderVariations(); render();
+});
+document.getElementById('newBtn').addEventListener('click', () => {
+  state.seed = Math.random()*1000;
+  renderVariations(); render();
+});
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(buildSvg(), 'SVG copied'));
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const link = document.createElement('a');
+  link.download = `blob-${Date.now()}.svg`; link.href = URL.createObjectURL(blob); link.click();
+});
+
+renderVariations(); render();
+</script>
+</body>
+</html>

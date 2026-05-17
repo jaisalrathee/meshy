@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Font Pairing · meshy.fun</title>
+<meta name="description" content="Curated Google Fonts pairings with live preview." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Playfair+Display:wght@400;700&family=Lora:wght@400;700&family=Source+Serif+4:wght@400;700&family=DM+Serif+Display&family=Cormorant+Garamond:wght@400;700&family=Fraunces:wght@400;700&family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;700&family=DM+Sans:wght@400;500;700&family=Outfit:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title" id="title">A quiet moment.</div>
+      <button class="btn" id="prevBtn">← Prev</button>
+      <button class="btn" id="nextBtn">Next →</button>
+      <button class="btn primary" id="copyBtn">Copy CSS</button>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="pair-stage" id="stage"></div>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .canvas { padding: 0; overflow-y: auto; }
+  .pair-stage { padding: 60px; }
+  .pair-meta { font-size: 11px; color: var(--ink-3); font-family: 'SF Mono', monospace; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .pair-head { font-size: 56px; line-height: 1.1; margin: 0 0 12px; font-weight: 700; letter-spacing: -0.02em; }
+  .pair-body { font-size: 17px; line-height: 1.6; margin: 0; color: var(--ink-2); max-width: 640px; }
+  .pair-row { padding: 10px 6px; border-radius: 8px; cursor: pointer; }
+  .pair-row:hover { background: var(--line-2); }
+  .pair-row.active { background: var(--line-2); }
+  .pair-row .nm { font-size: 12.5px; font-weight: 500; color: var(--ink); }
+  .pair-row .vb { font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const PAIRS = [
+  { head: 'Instrument Serif', body: 'Inter', vibe: 'Editorial · Modern' },
+  { head: 'Playfair Display', body: 'Source Serif 4', vibe: 'Classic · Bookish' },
+  { head: 'DM Serif Display', body: 'DM Sans', vibe: 'Friendly · Versatile' },
+  { head: 'Fraunces', body: 'Manrope', vibe: 'Distinctive · Warm' },
+  { head: 'Cormorant Garamond', body: 'Outfit', vibe: 'Elegant · Minimal' },
+  { head: 'Space Grotesk', body: 'Inter', vibe: 'Tech · Geometric' },
+  { head: 'Plus Jakarta Sans', body: 'Plus Jakarta Sans', vibe: 'Mono-family · Clean' },
+  { head: 'Lora', body: 'Inter', vibe: 'Traditional · Approachable' },
+  { head: 'Manrope', body: 'JetBrains Mono', vibe: 'Docs · Crisp' },
+  { head: 'Outfit', body: 'Outfit', vibe: 'Single-family · Bold' },
+];
+
+let active = 0;
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Fonts')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Pairs <span class="count">${PAIRS.length}</span></div>
+      <div id="pairList"></div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Snippet</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Heading</div>
+      <div id="headFont" style="font-size:13px;margin-bottom:14px"></div>
+      <div class="sec-title">Body</div>
+      <div id="bodyFont" style="font-size:13px"></div>
+    </div>
+    <div class="sec">
+      <button class="btn full" id="cssBtn">Copy CSS import</button>
+    </div>
+  </div>
+`;
+
+function render() {
+  const p = PAIRS[active];
+  document.getElementById('stage').innerHTML = `
+    <div class="pair-meta">${p.head} + ${p.body} · ${p.vibe}</div>
+    <h2 class="pair-head" style="font-family:'${p.head}', serif">A quiet moment, a perfect pair.</h2>
+    <p class="pair-body" style="font-family:'${p.body}', sans-serif">Typography is the craft of endowing human language with a durable visual form. The pairing of typefaces creates a voice — pick the right two, and your design speaks before a single word is read. Choose one for emphasis, one for clarity.</p>
+  `;
+  document.getElementById('title').textContent = p.head + '.';
+  document.getElementById('title').style.fontFamily = `'${p.head}', serif`;
+  document.getElementById('headFont').textContent = p.head;
+  document.getElementById('headFont').style.fontFamily = `'${p.head}', serif`;
+  document.getElementById('bodyFont').textContent = p.body;
+  document.getElementById('bodyFont').style.fontFamily = `'${p.body}', sans-serif`;
+  renderList();
+}
+
+function renderList() {
+  const wrap = document.getElementById('pairList');
+  wrap.innerHTML = '';
+  PAIRS.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'pair-row' + (i === active ? ' active' : '');
+    el.innerHTML = `<div class="nm" style="font-family:'${p.head}',serif">${p.head}</div><div class="vb">+ ${p.body}</div>`;
+    el.addEventListener('click', () => { active = i; render(); });
+    wrap.appendChild(el);
+  });
+}
+
+function getCss() {
+  const p = PAIRS[active];
+  return `@import url('https://fonts.googleapis.com/css2?family=${p.head.replace(/ /g,'+')}&family=${p.body.replace(/ /g,'+')}&display=swap');\n\nh1, h2, h3 { font-family: '${p.head}', serif; }\nbody { font-family: '${p.body}', sans-serif; }`;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => { active = (active - 1 + PAIRS.length) % PAIRS.length; render(); });
+document.getElementById('nextBtn').addEventListener('click', () => { active = (active + 1) % PAIRS.length; render(); });
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(getCss(), 'CSS copied'));
+document.getElementById('cssBtn').addEventListener('click', () => meshy.copy(getCss(), 'CSS copied'));
+
+render();
+</script>
+</body>
+</html>

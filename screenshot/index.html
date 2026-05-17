@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Screenshot Beautifier · meshy.fun</title>
+<meta name="description" content="Drop a screenshot, get a beautiful gradient background, soft shadow, perfect padding. Export PNG." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <!-- LEFT: Backgrounds -->
+  <aside class="sidebar"></aside>
+
+  <!-- CENTER: Canvas -->
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">Beautify a screenshot.</div>
+      <button class="btn" id="randomBgBtn">Random</button>
+      <button class="btn primary" id="exportBtn">Export PNG</button>
+    </div>
+    <div class="canvas checker" id="canvas">
+      <div class="stage-bg" id="stageBg"></div>
+      <div class="dropzone" id="dropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="dropzone-text">Drop a screenshot or <label><a>browse</a><input type="file" id="fileInput" accept="image/*" style="display:none"></label></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT: Controls -->
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .stage-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 60px; }
+  .stage-bg.has-image { background-size: cover; background-position: center; }
+  .shot-img { max-width: 100%; max-height: 100%; }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const BGS = [
+  { name: 'Peach', colors: ['#FFB199','#FF8FA3','#FFC8A2','#FFD6A5','#FF9A8B'] },
+  { name: 'Iris', colors: ['#667EEA','#764BA2','#F093FB','#F5576C','#4FACFE'] },
+  { name: 'Sunset', colors: ['#FF6B6B','#FFA07A','#FFD56B','#FF8E72','#FF5E78'] },
+  { name: 'Ocean', colors: ['#A1C4FD','#C2E9FB','#E0C3FC','#8EC5FC','#B5FFFC'] },
+  { name: 'Midnight', colors: ['#0F2027','#203A43','#2C5364','#1F1C2C','#928DAB'] },
+  { name: 'Mint', colors: ['#D4FC79','#96E6A1','#C2E9FB','#A1FFCE','#FAFFD1'] },
+  { name: 'Cyber', colors: ['#FF0080','#7928CA','#FF4D4D','#F9CB28','#0070F3'] },
+  { name: 'Sand', colors: ['#F5E6D3','#E8D5B7','#D4B996','#C19A6B','#A47148'] },
+  { name: 'Mocha', colors: ['#A47864','#C9A47C','#7B5944','#E6CFB5','#8D6748'] },
+  { name: 'Aurora', colors: ['#000428','#004E92','#7303C0','#EC38BC','#FDEFF9'] },
+];
+const stops = [[20,25],[75,30],[40,75],[80,80],[50,50]];
+
+const state = {
+  bg: 0, pad: 100, rad: 12, shadow: 60, tilt: 0,
+  aspect: '16/10', image: null,
+};
+
+// Inject sidebar contents
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Screenshot')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Background <span class="count">${BGS.length}</span></div>
+      <div class="thumb-grid" id="bgPresets"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Aspect</div>
+      <div class="chips" id="aspectChips">
+        <div class="chip active" data-asp="16/10">16:10</div>
+        <div class="chip" data-asp="16/9">16:9</div>
+        <div class="chip" data-asp="1/1">1:1</div>
+        <div class="chip" data-asp="4/5">4:5</div>
+        <div class="chip" data-asp="9/16">9:16</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml('Drop an image anywhere')}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Padding</label><span class="val" id="padVal">100</span></div>
+      <input type="range" id="pad" min="20" max="240" value="100">
+      <div class="row" style="margin-top:14px"><label>Corner radius</label><span class="val" id="radVal">12</span></div>
+      <input type="range" id="rad" min="0" max="60" value="12">
+      <div class="row" style="margin-top:14px"><label>Shadow</label><span class="val" id="shadowVal">60</span></div>
+      <input type="range" id="shadow" min="0" max="100" value="60">
+      <div class="row" style="margin-top:14px"><label>Tilt</label><span class="val" id="tiltVal">0°</span></div>
+      <input type="range" id="tilt" min="-15" max="15" value="0">
+    </div>
+  </div>
+`;
+
+function buildBg(idx) {
+  const c = BGS[idx].colors;
+  return c.map((col,i) => `radial-gradient(at ${stops[i][0]}% ${stops[i][1]}%, ${col} 0px, transparent 50%)`).join(', ') + `, ${c[0]}`;
+}
+
+function renderPresets() {
+  const wrap = document.getElementById('bgPresets');
+  wrap.innerHTML = '';
+  BGS.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'thumb-card' + (i === state.bg ? ' active' : '');
+    el.style.background = buildBg(i);
+    el.innerHTML = `<div class="name">${b.name}</div>`;
+    el.addEventListener('click', () => { state.bg = i; renderPresets(); render(); });
+    wrap.appendChild(el);
+  });
+}
+
+function render() {
+  const stageBg = document.getElementById('stageBg');
+  stageBg.style.background = buildBg(state.bg);
+  document.getElementById('canvas').style.aspectRatio = state.aspect;
+  document.getElementById('dropzone').style.display = state.image ? 'none' : 'flex';
+  stageBg.style.padding = state.pad + 'px';
+  stageBg.innerHTML = '';
+  if (state.image) {
+    const img = document.createElement('img');
+    img.src = state.image;
+    img.className = 'shot-img';
+    const sh = state.shadow;
+    img.style.cssText = `max-width:100%;max-height:100%;border-radius:${state.rad}px;transform:rotate(${state.tilt}deg);box-shadow:0 ${sh*0.25}px ${sh*1.0}px rgba(0,0,0,${0.15 + sh/400}), 0 ${sh*0.08}px ${sh*0.3}px rgba(0,0,0,${0.1 + sh/500});`;
+    stageBg.appendChild(img);
+  }
+}
+
+function bindRange(id, key, suffix='') {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = +e.target.value;
+    document.getElementById(id+'Val').textContent = state[key]+suffix;
+    render();
+  });
+}
+bindRange('pad','pad'); bindRange('rad','rad'); bindRange('shadow','shadow'); bindRange('tilt','tilt','°');
+
+document.getElementById('aspectChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#aspectChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.aspect = c.dataset.asp;
+  render();
+});
+document.getElementById('randomBgBtn').addEventListener('click', () => {
+  state.bg = Math.floor(Math.random()*BGS.length);
+  renderPresets(); render();
+});
+document.getElementById('fileInput').addEventListener('change', e => e.target.files[0] && loadImage(e.target.files[0]));
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadImage(f);
+});
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = ev => { state.image = ev.target.result; render(); };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!state.image) return meshy.toast('Drop a screenshot first');
+  const W = 2400;
+  const [aw, ah] = state.aspect.split('/').map(Number);
+  const H = Math.round(W * (ah/aw));
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const c = BGS[state.bg].colors;
+  ctx.fillStyle = c[0]; ctx.fillRect(0,0,W,H);
+  c.forEach((col,i) => {
+    const [px,py] = stops[i];
+    const cx = (px/100)*W, cy = (py/100)*H;
+    const r = Math.max(W,H)*0.55;
+    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,col); g.addColorStop(1,col+'00');
+    ctx.globalCompositeOperation = i===0?'source-over':'screen';
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  });
+  ctx.globalCompositeOperation = 'source-over';
+  const img = new Image();
+  img.onload = () => {
+    const padScale = W / document.getElementById('canvas').clientWidth;
+    const padPx = state.pad * padScale;
+    const maxW = W - padPx*2, maxH = H - padPx*2;
+    const scale = Math.min(maxW/img.width, maxH/img.height);
+    const iw = img.width*scale, ih = img.height*scale;
+    const x = (W-iw)/2, y = (H-ih)/2;
+    ctx.save();
+    ctx.translate(W/2, H/2); ctx.rotate(state.tilt*Math.PI/180); ctx.translate(-W/2, -H/2);
+    ctx.shadowColor = `rgba(0,0,0,${0.15 + state.shadow/400})`;
+    ctx.shadowBlur = state.shadow * 4;
+    ctx.shadowOffsetY = state.shadow * 1.0;
+    roundRect(ctx, x, y, iw, ih, state.rad*2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.save(); roundRect(ctx, x, y, iw, ih, state.rad*2); ctx.clip();
+    ctx.drawImage(img, x, y, iw, ih); ctx.restore();
+    ctx.restore();
+    const link = document.createElement('a');
+    link.download = 'beautified-' + Date.now() + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    meshy.toast('Exported');
+  };
+  img.src = state.image;
+});
+function roundRect(ctx,x,y,w,h,r) {
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+renderPresets();
+render();
+</script>
+</body>
+</html>

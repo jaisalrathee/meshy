@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Favicon Generator · meshy.fun</title>
+<meta name="description" content="Drop an image, get every favicon and app icon size." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">Every size you need.</div>
+      <button class="btn" id="htmlBtn">Copy HTML</button>
+      <button class="btn primary" id="allBtn">Download all</button>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="dropzone" id="dropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="dropzone-text">Drop a square image or <label><a>browse</a><input type="file" id="fileInput" accept="image/*" style="display:none"></label></div>
+      </div>
+      <div class="icons-stage" id="iconsStage" style="display:none"></div>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .canvas { padding: 0; overflow-y: auto; }
+  .icons-stage { padding: 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+  .ic-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; text-align: center; }
+  .ic-card .ic { display: flex; align-items: center; justify-content: center; height: 80px; margin-bottom: 12px; }
+  .ic-card .ic canvas { max-width: 100%; max-height: 100%; image-rendering: pixelated; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .ic-card .nm { font-size: 11px; color: var(--ink-2); font-family: 'SF Mono', monospace; margin-bottom: 4px; }
+  .ic-card .fn { font-size: 9.5px; color: var(--ink-3); margin-bottom: 8px; }
+  .ic-card button { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: inherit; }
+  .ic-card button:hover { background: var(--line-2); }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const SIZES = [16, 32, 48, 64, 96, 128, 180, 192, 256, 384, 512, 1024];
+const SPECIAL = { 16: 'favicon-16', 32: 'favicon-32', 180: 'apple-touch-icon', 192: 'android-chrome-192', 512: 'android-chrome-512' };
+let sourceImg = null;
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Favicon')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Source</div>
+      <div id="sourcePreview" style="aspect-ratio:1;background:var(--line-2);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--ink-3);font-size:12px">No image</div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Generated</div>
+      <div style="font-size:12px;color:var(--ink-3);line-height:1.55">${SIZES.length} sizes will be generated including: favicon-16, favicon-32, apple-touch-icon, android-chrome icons, and high-resolution app icons up to 1024×1024.</div>
+    </div>
+  </div>
+  ${meshy.hintHtml('Drop image anywhere')}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Sizes</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div id="sizesList" style="font-family:'SF Mono',monospace;font-size:11.5px;color:var(--ink-2);line-height:1.9">
+        ${SIZES.map(s => `<div style="display:flex;justify-content:space-between"><span>${s}×${s}</span><span style="color:var(--ink-3)">${SPECIAL[s] || 'icon-' + s}</span></div>`).join('')}
+      </div>
+    </div>
+  </div>
+`;
+
+document.getElementById('dropzone').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e => e.target.files[0] && load(e.target.files[0]));
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
+
+function load(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => { sourceImg = img; render(); };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function render() {
+  document.getElementById('dropzone').style.display = 'none';
+  document.getElementById('iconsStage').style.display = 'grid';
+  const sp = document.getElementById('sourcePreview');
+  sp.innerHTML = '';
+  const im = sourceImg.cloneNode();
+  im.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#fff';
+  sp.appendChild(im);
+
+  const grid = document.getElementById('iconsStage');
+  grid.innerHTML = '';
+  SIZES.forEach(size => {
+    const c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(sourceImg, 0, 0, size, size);
+    const card = document.createElement('div');
+    card.className = 'ic-card';
+    const ds = Math.min(size, 80);
+    const cl = c.cloneNode(); cl.getContext('2d').drawImage(c, 0, 0); cl.style.width = ds+'px'; cl.style.height = ds+'px';
+    const label = SPECIAL[size] ? SPECIAL[size]+'.png' : `icon-${size}.png`;
+    card.innerHTML = `<div class="ic"></div><div class="nm">${size}×${size}</div><div class="fn">${label}</div><button>Download</button>`;
+    card.querySelector('.ic').appendChild(cl);
+    card.querySelector('button').addEventListener('click', () => download(size, label));
+    grid.appendChild(card);
+  });
+}
+
+function download(size, label) {
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(sourceImg, 0, 0, size, size);
+  const link = document.createElement('a');
+  link.download = label; link.href = c.toDataURL('image/png'); link.click();
+}
+
+document.getElementById('htmlBtn').addEventListener('click', () => {
+  meshy.copy(`<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512.png">`, 'HTML copied');
+});
+document.getElementById('allBtn').addEventListener('click', () => {
+  if (!sourceImg) return meshy.toast('Drop an image first');
+  SIZES.forEach((s, i) => setTimeout(() => download(s, SPECIAL[s] ? SPECIAL[s]+'.png' : `icon-${s}.png`), i*200));
+  meshy.toast(`Downloading ${SIZES.length} files...`);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "meshy-fun",
+  "version": "1.0.0",
+  "description": "Beautiful design tools, free forever. meshy.fun",
+  "private": true,
+  "scripts": {
+    "start": "serve . -l ${PORT:-3000} --no-clipboard",
+    "dev": "serve . -l 4901 --no-clipboard"
+  },
+  "dependencies": {
+    "serve": "^14.2.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

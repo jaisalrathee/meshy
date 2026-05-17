@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hand Quote · meshy.fun</title>
+<meta name="description" content="Hand-drawn testimonial / pull-quote graphics." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Caveat:wght@400;500;600;700&family=Kalam:wght@300;400;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A handwritten testimonial.</div>
+      <button class="btn" id="newSeedBtn">New variation</button>
+      <button class="btn" id="svgBtn">Download SVG</button>
+      <button class="btn primary" id="pngBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 30px; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.08); border-radius: 8px; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const state = {
+  text: 'This little tool just saved me an entire weekend.',
+  author: 'Sarah Chen',
+  role: 'Indie hacker',
+  stars: 5,
+  paper: 'cream',
+  font: 'Caveat',
+  accent: '#E94560',
+  seed: 4,
+  w: 900, h: 540,
+};
+
+const PAPER = {
+  white: { bg: '#ffffff', ink: '#0a0a0a', muted: '#525252' },
+  cream: { bg: '#FBF6E9', ink: '#2A1F10', muted: '#6B5A3F' },
+  kraft: { bg: '#D9B98A', ink: '#3A2410', muted: '#6B4A28' },
+  graph: { bg: '#F0E8D8', ink: '#2A1F10', muted: '#6B5A3F' },
+  dark:  { bg: '#1B1B1F', ink: '#F5F5F5', muted: '#A0A0A0' },
+};
+
+const FONTS = ['Caveat','Kalam','Patrick Hand'];
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Quote')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Paper</div>
+      <div class="chips" id="paperChips">
+        <div class="chip" data-p="white">White</div>
+        <div class="chip active" data-p="cream">Cream</div>
+        <div class="chip" data-p="kraft">Kraft</div>
+        <div class="chip" data-p="graph">Graph</div>
+        <div class="chip" data-p="dark">Dark</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Font</div>
+      <div class="chips" id="fontChips">
+        ${FONTS.map(f => `<div class="chip ${f==='Caveat'?'active':''}" data-f="${f}" style="font-family:'${f}',cursive;font-size:13px">${f}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Accent</div>
+      <input type="color" id="accent" value="${state.accent}">
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Content</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Quote</label></div>
+      <textarea id="text" rows="4">${state.text}</textarea>
+      <div class="row" style="margin-top:12px"><label>Author</label></div>
+      <input type="text" id="author" value="${state.author}">
+      <div class="row" style="margin-top:12px"><label>Role / company</label></div>
+      <input type="text" id="role" value="${state.role}">
+      <div class="row" style="margin-top:12px"><label>Stars</label><span class="val" id="starsVal">5</span></div>
+      <input type="range" id="stars" min="0" max="5" value="5">
+    </div>
+  </div>
+`;
+
+function star(cx, cy, sz, fill, stroke, r) {
+  let d = '';
+  for (let i = 0; i < 10; i++) {
+    const a = i * Math.PI / 5 - Math.PI/2;
+    const rr = i % 2 === 0 ? sz : sz * 0.45;
+    d += (i === 0 ? 'M' : 'L') + ` ${(cx + Math.cos(a)*rr + (r()-0.5)*0.8).toFixed(1)} ${(cy + Math.sin(a)*rr + (r()-0.5)*0.8).toFixed(1)} `;
+  }
+  return `<path d="${d}Z" fill="${fill}" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"/>`;
+}
+
+function wrapText(text, maxChars) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    if ((cur + ' ' + w).length > maxChars && cur) { lines.push(cur); cur = w; }
+    else cur = cur ? cur + ' ' + w : w;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function buildSvg() {
+  const W = state.w, H = state.h;
+  const r = meshy.seededRand(state.seed);
+  const p = PAPER[state.paper];
+  let svg = `<rect width="${W}" height="${H}" fill="${p.bg}"/>`;
+
+  // outer card
+  svg += `<path d="${meshy.wobblyRoundRect(40, 40, W-80, H-80, 18, 1.5, r)}" fill="none" stroke="${p.ink}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // tape strip top
+  svg += `<g transform="rotate(-3 ${W/2} 50)"><rect x="${W/2-60}" y="20" width="120" height="32" fill="${state.accent}" opacity="0.4" stroke="${p.ink}" stroke-width="1.5"/></g>`;
+
+  // big opening quote mark
+  svg += `<text x="80" y="130" font-family="'${state.font}', cursive" font-size="140" font-weight="700" fill="${state.accent}" opacity="0.85">"</text>`;
+
+  // wrapped quote text
+  const lines = wrapText(state.text, 36);
+  const startY = 180;
+  const lineH = state.font === 'Patrick Hand' ? 50 : 56;
+  lines.forEach((line, i) => {
+    svg += `<text x="120" y="${startY + i*lineH}" font-family="'${state.font}', cursive" font-size="42" font-weight="500" fill="${p.ink}">${escape(line)}</text>`;
+  });
+  const quoteEndY = startY + lines.length*lineH + 20;
+
+  // closing quote mark
+  svg += `<text x="${W - 80}" y="${quoteEndY + 20}" text-anchor="end" font-family="'${state.font}', cursive" font-size="100" font-weight="700" fill="${state.accent}" opacity="0.7">"</text>`;
+
+  // wobbly divider above attribution
+  const divY = H - 140;
+  svg += `<path d="${meshy.wobblyLine(W/2 - 60, divY, W/2 + 60, divY, 1.5, r)}" stroke="${p.ink}" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.5"/>`;
+
+  // stars
+  if (state.stars > 0) {
+    const starY = H - 100;
+    const starSpacing = 30;
+    const totalW = state.stars * starSpacing;
+    const startX = W/2 - totalW/2 + starSpacing/2;
+    for (let i = 0; i < state.stars; i++) {
+      svg += star(startX + i*starSpacing, starY, 12, state.accent, p.ink, r);
+    }
+  }
+
+  // author
+  svg += `<text x="${W/2}" y="${H-50}" text-anchor="middle" font-family="'${state.font}', cursive" font-size="32" font-weight="700" fill="${p.ink}">${escape('— ' + state.author)}</text>`;
+  if (state.role) {
+    svg += `<text x="${W/2}" y="${H-22}" text-anchor="middle" font-family="'Kalam', cursive" font-size="18" fill="${p.muted}">${escape(state.role)}</text>`;
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${svg}</svg>`;
+}
+
+function escape(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render() {
+  document.getElementById('canvasWrap').style.background = PAPER[state.paper].bg;
+  document.getElementById('outSvg').outerHTML = buildSvg().replace('<svg ', '<svg id="outSvg" ');
+}
+
+['text','author','role'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => { state[id] = e.target.value; render(); });
+});
+document.getElementById('stars').addEventListener('input', e => { state.stars = +e.target.value; document.getElementById('starsVal').textContent = state.stars; render(); });
+document.getElementById('accent').addEventListener('input', e => { state.accent = e.target.value; render(); });
+['paperChips','fontChips'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    document.querySelectorAll(`#${id} .chip`).forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    state[id === 'paperChips' ? 'paper' : 'font'] = c.dataset[id === 'paperChips' ? 'p' : 'f'];
+    render();
+  });
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); render(); });
+document.getElementById('svgBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const link = document.createElement('a'); link.download = 'quote.svg'; link.href = URL.createObjectURL(blob); link.click();
+});
+document.getElementById('pngBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = state.w*2; c.height = state.h*2;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.download = 'quote.png'; link.href = c.toDataURL('image/png'); link.click();
+  };
+  img.src = url;
+});
+
+render();
+</script>
+</body>
+</html>

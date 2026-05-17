@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CMYK Halftone · meshy.fun</title>
+<meta name="description" content="Print-style halftone dots from any image. CMYK or mono." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A print-style halftone.</div>
+      <button class="btn" id="uploadBtn">Upload</button>
+      <button class="btn primary" id="exportBtn">Export PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap">
+      <canvas id="outCanvas"></canvas>
+      <div class="loading" id="loading">Loading…</div>
+    </div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<input type="file" id="fileInput" accept="image/*" style="display:none">
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 24px; background: #f4f4f4; position: relative; }
+  #outCanvas { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.15); border-radius: 8px; }
+  .loading { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--ink-3); font-size: 14px; }
+  .canvas.loading-on .loading { display: flex; }
+  .ex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ex-tile { aspect-ratio: 1.4/1; border-radius: 8px; cursor: pointer; border: 1.5px solid transparent; overflow: hidden; transition: transform .15s; background: #f4f4f4 center/cover; position: relative; }
+  .ex-tile:hover { transform: translateY(-2px); }
+  .ex-tile.active { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  .ex-tile .ex-label { position: absolute; bottom: 4px; left: 6px; font-size: 9px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); font-weight: 500; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const state = { sample: meshy.SAMPLE_PHOTOS[0].id, custom: null, dotSize: 8, angle: 15, mode: 'cmyk', invert: false, bg: '#ffffff', loadedImage: null };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Halftone')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Examples <span class="count">${meshy.SAMPLE_PHOTOS.length}</span></div>
+      <div class="ex-grid" id="exGrid"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Mode</div>
+      <div class="chips" id="modeChips">
+        <div class="chip active" data-m="cmyk">CMYK</div>
+        <div class="chip" data-m="mono">Mono</div>
+        <div class="chip" data-m="duo">Duotone</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml('Drop your own image anywhere')}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Dot size</label><span class="val" id="dotSizeVal">8px</span></div>
+      <input type="range" id="dotSize" min="3" max="24" value="8">
+      <div class="row" style="margin-top:14px"><label>Angle</label><span class="val" id="angleVal">15°</span></div>
+      <input type="range" id="angle" min="0" max="90" value="15">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Background</div>
+      <input type="color" id="bg" value="#ffffff">
+      <div class="chips" style="margin-top:10px"><div class="chip" id="invertChip">Invert</div></div>
+    </div>
+  </div>
+`;
+
+function renderExamples() {
+  const wrap = document.getElementById('exGrid'); wrap.innerHTML = '';
+  meshy.SAMPLE_PHOTOS.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'ex-tile' + (s.id===state.sample&&!state.custom?' active':'');
+    el.style.backgroundImage = `url("${s.url.replace('w=900','w=200')}")`;
+    el.innerHTML = `<div class="ex-label">${s.name}</div>`;
+    el.addEventListener('click', () => loadSample(s.id));
+    wrap.appendChild(el);
+  });
+}
+
+function rgbToCmyk(r,g,b) {
+  r/=255; g/=255; b/=255;
+  const k = 1 - Math.max(r,g,b);
+  if (k === 1) return [0,0,0,1];
+  return [(1-r-k)/(1-k), (1-g-k)/(1-k), (1-b-k)/(1-k), k];
+}
+
+function render() {
+  if (!state.loadedImage) return;
+  const out = document.getElementById('outCanvas');
+  const src = state.loadedImage;
+  const srcW = src.naturalWidth, srcH = src.naturalHeight;
+  const W = 800, H = Math.round(W * (srcH/srcW));
+  out.width = W; out.height = H;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = state.bg; ctx.fillRect(0,0,W,H);
+
+  const dotSize = state.dotSize;
+  const cols = Math.floor(W/dotSize), rows = Math.floor(H/dotSize);
+  const sample = document.createElement('canvas');
+  sample.width = cols; sample.height = rows;
+  try { sample.getContext('2d').drawImage(src, 0, 0, cols, rows); }
+  catch (e) { console.error('Canvas tainted', e); return; }
+  let data;
+  try { data = sample.getContext('2d').getImageData(0,0,cols,rows).data; }
+  catch (e) { meshy.toast('Image blocked by CORS — try uploading instead'); return; }
+
+  if (state.mode === 'cmyk') {
+    const angles = { c: 15, m: 75, y: 0, k: 45 };
+    const channelColors = { c: '#00BFFF', m: '#FF1493', y: '#FFD700', k: '#0a0a0a' };
+    ctx.globalCompositeOperation = 'multiply';
+    ['c','m','y','k'].forEach(ch => {
+      ctx.fillStyle = channelColors[ch];
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        const i = (y*cols+x)*4;
+        const cmyk = rgbToCmyk(data[i], data[i+1], data[i+2]);
+        const val = cmyk[['c','m','y','k'].indexOf(ch)];
+        if (val < 0.05) continue;
+        const r = (dotSize/2) * Math.sqrt(state.invert ? 1-val : val);
+        ctx.beginPath(); ctx.arc(x*dotSize+dotSize/2, y*dotSize+dotSize/2, r, 0, Math.PI*2); ctx.fill();
+      }
+    });
+    ctx.globalCompositeOperation = 'source-over';
+  } else if (state.mode === 'mono') {
+    ctx.fillStyle = '#0a0a0a';
+    for (let y=0; y<rows; y++) for (let x=0; x<cols; x++) {
+      const i=(y*cols+x)*4;
+      const br = (data[i]+data[i+1]+data[i+2])/3 / 255;
+      const v = state.invert ? br : 1-br;
+      const r = (dotSize/2) * Math.sqrt(v);
+      if (r < 0.5) continue;
+      ctx.beginPath(); ctx.arc(x*dotSize+dotSize/2, y*dotSize+dotSize/2, r, 0, Math.PI*2); ctx.fill();
+    }
+  } else {
+    for (let y=0; y<rows; y++) for (let x=0; x<cols; x++) {
+      const i=(y*cols+x)*4;
+      const br = (data[i]+data[i+1]+data[i+2])/3 / 255;
+      const v = state.invert ? br : 1-br;
+      const r = (dotSize/2) * Math.sqrt(v);
+      if (r < 0.5) continue;
+      ctx.fillStyle = br > 0.5 ? '#FF1493' : '#00BFFF';
+      ctx.beginPath(); ctx.arc(x*dotSize+dotSize/2, y*dotSize+dotSize/2, r, 0, Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+async function loadSample(id) {
+  document.getElementById('canvasWrap').classList.add('loading-on');
+  try {
+    const img = await meshy.loadSample(id);
+    state.sample = id; state.custom = null; state.loadedImage = img;
+    renderExamples(); render();
+  } catch (e) { meshy.toast('Failed to load sample'); }
+  finally { document.getElementById('canvasWrap').classList.remove('loading-on'); }
+}
+
+function bindRange(id,key,suffix='') {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = +e.target.value;
+    document.getElementById(id+'Val').textContent = state[key]+suffix;
+    render();
+  });
+}
+bindRange('dotSize','dotSize','px');
+bindRange('angle','angle','°');
+document.getElementById('bg').addEventListener('input', e => { state.bg = e.target.value; render(); });
+document.getElementById('invertChip').addEventListener('click', e => { state.invert = !state.invert; e.target.classList.toggle('active', state.invert); render(); });
+document.getElementById('modeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#modeChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); state.mode = c.dataset.m; render();
+});
+document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e => e.target.files[0] && loadFile(e.target.files[0]));
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) loadFile(f); });
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => { const img = new Image(); img.onload = () => { state.custom = ev.target.result; state.loadedImage = img; renderExamples(); render(); }; img.src = ev.target.result; };
+  reader.readAsDataURL(file);
+}
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!state.loadedImage) return;
+  const out = document.getElementById('outCanvas');
+  const link = document.createElement('a'); link.download = 'halftone-'+Date.now()+'.png'; link.href = out.toDataURL('image/png'); link.click();
+  meshy.toast('Exported');
+});
+
+renderExamples(); loadSample(state.sample);
+</script>
+</body>
+</html>

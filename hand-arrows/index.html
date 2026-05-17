@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hand Arrows · meshy.fun</title>
+<meta name="description" content="Hand-drawn annotation arrows for screenshots. Curved, looped, wobbled." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">An arrow that points.</div>
+      <button class="btn" id="newSeedBtn">New variation</button>
+      <button class="btn" id="copyBtn">Copy SVG</button>
+      <button class="btn primary" id="pngBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 30px; background: #FBF6E9; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.08); border-radius: 8px; }
+  .arrow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .arrow-pick { aspect-ratio: 1.6/1; border-radius: 10px; background: #fff; cursor: pointer; border: 1.5px solid transparent; padding: 8px; transition: transform .15s; }
+  .arrow-pick:hover { transform: translateY(-2px); }
+  .arrow-pick.active { border-color: var(--ink); }
+  .arrow-pick svg { width: 100%; height: 100%; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const state = { style: 'curve', color: '#E94560', label: 'Look here!', weight: 4, seed: 7, paper: 'cream', size: 320 };
+
+const PAPER = { cream: '#FBF6E9', white: '#ffffff', dark: '#1B1B1F', grid: '#F0E8D8', transparent: 'transparent' };
+
+function arrowHead(x, y, ang, size, color, weight) {
+  const a1 = ang + Math.PI - 0.45, a2 = ang + Math.PI + 0.45;
+  const x1 = x + Math.cos(a1) * size, y1 = y + Math.sin(a1) * size;
+  const x2 = x + Math.cos(a2) * size, y2 = y + Math.sin(a2) * size;
+  return `<path d="M ${x1} ${y1} L ${x} ${y} L ${x2} ${y2}" stroke="${color}" stroke-width="${weight}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+
+function arrowStyle(name, x1, y1, x2, y2, color, weight, r) {
+  let svg = '';
+  let lastAng = Math.atan2(y2-y1, x2-x1);
+  switch (name) {
+    case 'curve': {
+      // Quadratic curve from p1 to p2 via control point
+      const midX = (x1+x2)/2, midY = (y1+y2)/2;
+      const dx = x2-x1, dy = y2-y1;
+      const len = Math.hypot(dx, dy);
+      const cx = midX - dy/len * len*0.35, cy = midY + dx/len * len*0.35;
+      // wobbly bezier — sample points
+      const steps = 30;
+      let d = `M ${x1} ${y1}`;
+      for (let i = 1; i <= steps; i++) {
+        const t = i/steps;
+        const px = (1-t)*(1-t)*x1 + 2*(1-t)*t*cx + t*t*x2;
+        const py = (1-t)*(1-t)*y1 + 2*(1-t)*t*cy + t*t*y2;
+        const jx = px + (r()-0.5)*1.5;
+        const jy = py + (r()-0.5)*1.5;
+        d += ` L ${jx.toFixed(1)} ${jy.toFixed(1)}`;
+        if (i === steps) lastAng = Math.atan2(py - ((1-(t-0.04))*(1-(t-0.04))*y1 + 2*(1-(t-0.04))*(t-0.04)*cy + (t-0.04)*(t-0.04)*y2), px - ((1-(t-0.04))*(1-(t-0.04))*x1 + 2*(1-(t-0.04))*(t-0.04)*cx + (t-0.04)*(t-0.04)*x2));
+      }
+      svg += `<path d="${d}" stroke="${color}" stroke-width="${weight}" fill="none" stroke-linecap="round"/>`;
+      svg += arrowHead(x2, y2, lastAng, 16, color, weight);
+      return svg;
+    }
+    case 'straight': {
+      svg += `<path d="${meshy.wobblyLine(x1, y1, x2, y2, 1.8, r)}" stroke="${color}" stroke-width="${weight}" fill="none" stroke-linecap="round"/>`;
+      svg += arrowHead(x2, y2, lastAng, 16, color, weight);
+      return svg;
+    }
+    case 'loop': {
+      // a loop near the end
+      const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy);
+      const midX = x1 + dx*0.55, midY = y1 + dy*0.55;
+      const lr = len * 0.15;
+      let d = `M ${x1} ${y1}`;
+      // segment 1
+      const steps1 = 10;
+      for (let i = 1; i <= steps1; i++) {
+        const t = i/steps1;
+        d += ` L ${(x1 + dx*0.45*t + (r()-0.5)*1).toFixed(1)} ${(y1 + dy*0.45*t + (r()-0.5)*1).toFixed(1)}`;
+      }
+      // loop
+      const loopCx = midX, loopCy = midY;
+      for (let i = 0; i <= 20; i++) {
+        const a = (i/20) * Math.PI * 2 - Math.PI/2;
+        const px = loopCx + Math.cos(a) * lr;
+        const py = loopCy + Math.sin(a) * lr;
+        d += ` L ${(px + (r()-0.5)*1).toFixed(1)} ${(py + (r()-0.5)*1).toFixed(1)}`;
+      }
+      // segment 2 to end
+      for (let i = 1; i <= steps1; i++) {
+        const t = i/steps1;
+        const px = midX + (x2-midX)*t, py = midY + (y2-midY)*t;
+        d += ` L ${(px + (r()-0.5)*1).toFixed(1)} ${(py + (r()-0.5)*1).toFixed(1)}`;
+      }
+      svg += `<path d="${d}" stroke="${color}" stroke-width="${weight}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+      svg += arrowHead(x2, y2, lastAng, 16, color, weight);
+      return svg;
+    }
+    case 'wavy': {
+      // sinusoidal wiggle along the path
+      const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy);
+      const ux = dx/len, uy = dy/len;
+      const px = -uy, py = ux; // perpendicular
+      let d = `M ${x1} ${y1}`;
+      const steps = 60;
+      for (let i = 1; i <= steps; i++) {
+        const t = i/steps;
+        const baseX = x1 + dx*t, baseY = y1 + dy*t;
+        const wave = Math.sin(t * Math.PI * 6) * 8;
+        d += ` L ${(baseX + px*wave + (r()-0.5)*1).toFixed(1)} ${(baseY + py*wave + (r()-0.5)*1).toFixed(1)}`;
+      }
+      svg += `<path d="${d}" stroke="${color}" stroke-width="${weight}" fill="none" stroke-linecap="round"/>`;
+      svg += arrowHead(x2, y2, lastAng, 16, color, weight);
+      return svg;
+    }
+    case 'spiral': {
+      // spiral inward at end
+      const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy);
+      let d = `M ${x1} ${y1}`;
+      const steps1 = 20;
+      for (let i = 1; i <= steps1; i++) {
+        const t = i/steps1;
+        d += ` L ${(x1 + dx*0.6*t + (r()-0.5)*1.5).toFixed(1)} ${(y1 + dy*0.6*t + (r()-0.5)*1.5).toFixed(1)}`;
+      }
+      const sx = x1 + dx*0.6, sy = y1 + dy*0.6;
+      const sr = len*0.18;
+      for (let i = 0; i <= 30; i++) {
+        const a = i/30 * Math.PI * 3;
+        const radius = sr * (1 - i/30 * 0.85);
+        d += ` L ${(sx + Math.cos(a)*radius).toFixed(1)} ${(sy + Math.sin(a)*radius).toFixed(1)}`;
+      }
+      svg += `<path d="${d}" stroke="${color}" stroke-width="${weight}" fill="none" stroke-linecap="round"/>`;
+      return svg;
+    }
+    case 'zigzag': {
+      const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy);
+      const ux = dx/len, uy = dy/len;
+      const px = -uy, py = ux;
+      let d = `M ${x1} ${y1}`;
+      const steps = 8;
+      const amp = 14;
+      for (let i = 1; i <= steps; i++) {
+        const t = i/steps;
+        const baseX = x1 + dx*t, baseY = y1 + dy*t;
+        const z = (i%2===0?1:-1) * amp;
+        d += ` L ${(baseX + px*z).toFixed(1)} ${(baseY + py*z).toFixed(1)}`;
+      }
+      d += ` L ${x2} ${y2}`;
+      svg += `<path d="${d}" stroke="${color}" stroke-width="${weight}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+      svg += arrowHead(x2, y2, lastAng, 16, color, weight);
+      return svg;
+    }
+  }
+  return '';
+}
+
+const STYLES = [
+  { id: 'curve', name: 'Curve' },
+  { id: 'straight', name: 'Straight' },
+  { id: 'loop', name: 'Loop' },
+  { id: 'wavy', name: 'Wavy' },
+  { id: 'spiral', name: 'Spiral' },
+  { id: 'zigzag', name: 'Zigzag' },
+];
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Arrows')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Style <span class="count">${STYLES.length}</span></div>
+      <div class="arrow-grid" id="arrowGrid"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Paper</div>
+      <div class="chips" id="paperChips">
+        <div class="chip" data-p="white">White</div>
+        <div class="chip active" data-p="cream">Cream</div>
+        <div class="chip" data-p="grid">Grid</div>
+        <div class="chip" data-p="dark">Dark</div>
+        <div class="chip" data-p="transparent">None</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Style</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Color</div>
+      <input type="color" id="color" value="${state.color}">
+      <div class="row" style="margin-top:14px"><label>Weight</label><span class="val" id="weightVal">4</span></div>
+      <input type="range" id="weight" min="2" max="10" value="4">
+      <div class="row" style="margin-top:14px"><label>Label</label></div>
+      <input type="text" id="label" value="${state.label}">
+    </div>
+  </div>
+`;
+
+function renderArrowGrid() {
+  const wrap = document.getElementById('arrowGrid'); wrap.innerHTML = '';
+  STYLES.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'arrow-pick' + (s.id === state.style ? ' active' : '');
+    const r = meshy.seededRand(7);
+    el.innerHTML = `<svg viewBox="0 0 200 120">${arrowStyle(s.id, 30, 100, 170, 30, state.color, 3, r)}</svg>`;
+    el.title = s.name;
+    el.addEventListener('click', () => { state.style = s.id; renderArrowGrid(); render(); });
+    wrap.appendChild(el);
+  });
+}
+
+function buildSvg() {
+  const r = meshy.seededRand(state.seed);
+  const W = 500, H = 320;
+  const bg = state.paper === 'transparent' ? '' : `<rect width="${W}" height="${H}" fill="${PAPER[state.paper]}"/>`;
+  let grid = '';
+  if (state.paper === 'grid') {
+    for (let i = 0; i < W; i += 25) grid += `<line x1="${i}" y1="0" x2="${i}" y2="${H}" stroke="rgba(70,140,200,.18)"/>`;
+    for (let j = 0; j < H; j += 25) grid += `<line x1="0" y1="${j}" x2="${W}" y2="${j}" stroke="rgba(70,140,200,.18)"/>`;
+  }
+  const arrow = arrowStyle(state.style, 50, H-50, W-60, 80, state.color, state.weight, r);
+  let label = '';
+  if (state.label) {
+    label = `<text x="50" y="${H-70}" font-family="'Caveat',cursive" font-size="36" font-weight="700" fill="${state.color}">${escape(state.label)}</text>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${bg}${grid}${label}${arrow}</svg>`;
+}
+function escape(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render() {
+  document.getElementById('canvasWrap').style.background = state.paper === 'transparent' ? '#fafafa' : PAPER[state.paper];
+  document.getElementById('outSvg').outerHTML = buildSvg().replace('<svg ', '<svg id="outSvg" ');
+}
+
+document.getElementById('color').addEventListener('input', e => { state.color = e.target.value; renderArrowGrid(); render(); });
+document.getElementById('weight').addEventListener('input', e => { state.weight = +e.target.value; document.getElementById('weightVal').textContent = state.weight; render(); });
+document.getElementById('label').addEventListener('input', e => { state.label = e.target.value; render(); });
+document.getElementById('paperChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#paperChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); state.paper = c.dataset.p; render();
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); render(); });
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(buildSvg(), 'SVG copied'));
+document.getElementById('pngBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = 1000; c.height = 640;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.download = `arrow-${state.style}.png`; link.href = c.toDataURL('image/png'); link.click();
+  };
+  img.src = url;
+});
+
+renderArrowGrid(); render();
+</script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Fractal Glass · meshy.fun</title>
+<meta name="description" content="Fractal displacement glass effect on any image." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">Through textured glass.</div>
+      <button class="btn" id="uploadBtn">Upload</button>
+      <button class="btn" id="newSeedBtn">New seed</button>
+      <button class="btn primary" id="exportBtn">Export PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap">
+      <svg id="outSvg" width="100%" height="100%"></svg>
+    </div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<input type="file" id="fileInput" accept="image/*" style="display:none">
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 24px; background: #f4f4f4; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.15); border-radius: 8px; }
+  .ex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ex-tile { aspect-ratio: 1.4/1; border-radius: 8px; cursor: pointer; border: 1.5px solid transparent; overflow: hidden; transition: transform .15s; background: #f4f4f4 center/cover; position: relative; }
+  .ex-tile:hover { transform: translateY(-2px); }
+  .ex-tile.active { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  .ex-tile .ex-label { position: absolute; bottom: 4px; left: 6px; font-size: 9px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); font-weight: 500; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const state = { sample: meshy.SAMPLE_PHOTOS[3].id, custom: null, loadedImage: null, frequency: 0.012, octaves: 2, scale: 30, seed: 3, mode: 'turbulence' };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Fractal')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Examples <span class="count">${meshy.SAMPLE_PHOTOS.length}</span></div>
+      <div class="ex-grid" id="exGrid"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Pattern</div>
+      <div class="chips" id="modeChips">
+        <div class="chip active" data-m="turbulence">Glass</div>
+        <div class="chip" data-m="fractalNoise">Smoke</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml('Click <strong>New seed</strong> for a new texture')}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Frequency</label><span class="val" id="frequencyVal">0.012</span></div>
+      <input type="range" id="frequency" min="2" max="100" value="12">
+      <div class="row" style="margin-top:14px"><label>Octaves</label><span class="val" id="octavesVal">2</span></div>
+      <input type="range" id="octaves" min="1" max="6" value="2">
+      <div class="row" style="margin-top:14px"><label>Displacement</label><span class="val" id="scaleVal">30</span></div>
+      <input type="range" id="scale" min="0" max="120" value="30">
+    </div>
+  </div>
+`;
+
+function renderExamples() {
+  const wrap = document.getElementById('exGrid'); wrap.innerHTML = '';
+  meshy.SAMPLE_PHOTOS.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'ex-tile' + (s.id===state.sample&&!state.custom?' active':'');
+    el.style.backgroundImage = `url("${s.url.replace('w=900','w=200')}")`;
+    el.innerHTML = `<div class="ex-label">${s.name}</div>`;
+    el.addEventListener('click', () => loadSampleById(s.id));
+    wrap.appendChild(el);
+  });
+}
+async function loadSampleById(id) {
+  try {
+    const img = await meshy.loadSample(id);
+    state.sample = id; state.custom = null; state.loadedImage = img;
+    renderExamples(); render();
+  } catch (e) { meshy.toast('Failed to load sample'); }
+}
+function getSrcDataUrl() {
+  if (!state.loadedImage) return '';
+  const img = state.loadedImage;
+  const c = document.createElement('canvas');
+  c.width = 800; c.height = Math.round(800 * (img.naturalHeight/img.naturalWidth));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/png');
+}
+
+function render() {
+  if (!state.loadedImage) return;
+  const svg = document.getElementById('outSvg');
+  const src = state.loadedImage;
+  const srcW = src.naturalWidth, srcH = src.naturalHeight;
+  const W = 800, H = Math.round(W * (srcH/srcW));
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const dataUrl = getSrcDataUrl();
+  svg.innerHTML = `
+    <defs>
+      <filter id="fg" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="${state.mode}" baseFrequency="${state.frequency}" numOctaves="${state.octaves}" seed="${state.seed}"/>
+        <feDisplacementMap in="SourceGraphic" scale="${state.scale}"/>
+      </filter>
+    </defs>
+    <image href="${dataUrl}" width="${W}" height="${H}" filter="url(#fg)"/>
+  `;
+}
+
+function bindRange(id,key,suffix='', transform = x => +x) {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = transform(e.target.value);
+    document.getElementById(id+'Val').textContent = (typeof state[key] === 'number' && !Number.isInteger(state[key]) ? state[key].toFixed(3) : state[key]) + suffix;
+    render();
+  });
+}
+document.getElementById('frequency').addEventListener('input', e => {
+  state.frequency = +e.target.value / 1000;
+  document.getElementById('frequencyVal').textContent = state.frequency.toFixed(3);
+  render();
+});
+bindRange('octaves','octaves'); bindRange('scale','scale');
+document.getElementById('modeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#modeChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); state.mode = c.dataset.m; render();
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); render(); });
+document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e => e.target.files[0] && loadFile(e.target.files[0]));
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) loadFile(f); });
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => { const img = new Image(); img.onload = () => { state.custom = ev.target.result; state.loadedImage = img; renderExamples(); render(); }; img.src = ev.target.result; };
+  reader.readAsDataURL(file);
+}
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  // Render SVG to PNG via canvas
+  const svgEl = document.getElementById('outSvg');
+  const svgStr = new XMLSerializer().serializeToString(svgEl);
+  const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = img.width * 2; c.height = img.height * 2;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.download = 'fractal-'+Date.now()+'.png'; link.href = c.toDataURL('image/png'); link.click();
+    meshy.toast('Exported');
+  };
+  img.src = url;
+});
+
+renderExamples(); loadSampleById(state.sample);
+</script>
+</body>
+</html>

@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Logomark Generator · meshy.fun</title>
+<meta name="description" content="Generative logomarks: initial + shape + mesh gradient." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@500;700&family=Manrope:wght@500;700;800&family=Fraunces:wght@500;700;900&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A mark for your brand.</div>
+      <button class="btn" id="randomBtn">Generate variations</button>
+      <button class="btn" id="surpriseBtn" title="Generate something completely new">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.91 5.66 5.59.81L15 13.75 16.36 19 12 16.23 7.64 19 9 13.75 4.5 9.47l5.59-.81z"/></svg>
+        Surprise me
+      </button>
+      <button class="btn" id="svgBtn">Download SVG</button>
+      <button class="btn primary" id="pngBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="lm-stage" id="stage"></div>
+    </div>
+    <div class="canvas-bottom">
+      <div class="strip" id="variations"></div>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 50px; }
+  .lm-stage { width: min(360px, 100%); aspect-ratio: 1; }
+  .lm-stage svg { width: 100%; height: 100%; display: block; }
+  .strip .var-tile { flex-shrink: 0; width: 80px; aspect-ratio: 1; border-radius: 10px; overflow: hidden; cursor: pointer; box-shadow: var(--shadow); border: 1.5px solid transparent; }
+  .strip .var-tile.active { border-color: var(--ink); }
+  .strip .var-tile svg { width: 100%; height: 100%; display: block; }
+  .icon-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 280px; overflow-y: auto; }
+  .icon-grid::-webkit-scrollbar { width: 6px; }
+  .icon-grid::-webkit-scrollbar-thumb { background: #e5e5e5; border-radius: 3px; }
+  .icon-pick {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background: var(--line-2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: all .12s ease;
+  }
+  .icon-pick:hover { background: #eaeaea; }
+  .icon-pick.active { background: var(--ink); border-color: var(--ink); }
+  .icon-pick.active svg { color: #fff; }
+  .icon-pick svg { width: 60%; height: 60%; color: var(--ink); }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const PALETTES = [
+  { name: 'Iris', colors: ['#667EEA','#764BA2','#F093FB','#F5576C','#4FACFE'] },
+  { name: 'Sunset', colors: ['#FF6B6B','#FFA07A','#FFD56B','#FF8E72','#FF5E78'] },
+  { name: 'Mint', colors: ['#D4FC79','#96E6A1','#C2E9FB','#A1FFCE','#FAFFD1'] },
+  { name: 'Ocean', colors: ['#A1C4FD','#C2E9FB','#E0C3FC','#8EC5FC','#B5FFFC'] },
+  { name: 'Peach', colors: ['#FFB199','#FF8FA3','#FFC8A2','#FFD6A5','#FF9A8B'] },
+  { name: 'Cyber', colors: ['#FF0080','#7928CA','#FF4D4D','#F9CB28','#0070F3'] },
+  { name: 'Midnight', colors: ['#0F2027','#203A43','#2C5364','#1F1C2C','#928DAB'] },
+  { name: 'Mocha', colors: ['#A47864','#C9A47C','#7B5944','#E6CFB5','#8D6748'] },
+  { name: 'Mono', colors: ['#1a1a1a','#4a4a4a','#7a7a7a','#aaaaaa','#dadada'] },
+  { name: 'Brat', colors: ['#8ACE00','#B7D33B','#5E9300','#C7E66F','#88B500'] },
+];
+const stops = [[20,25],[75,30],[40,75],[80,80],[50,50]];
+const SHAPES = ['circle','squircle','hexagon','blob','diamond','rounded'];
+const FONTS = ['Inter','Space Grotesk','Manrope','Fraunces','Instrument Serif','DM Serif Display'];
+
+// Lucide-style icon paths (24x24 viewBox, stroke-based)
+// Path data only — wrapped with stroke attrs at render time
+const ICONS = {
+  // Shapes
+  star:     { cat: 'Shapes', d: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+  heart:    { cat: 'Shapes', d: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z' },
+  diamond:  { cat: 'Shapes', d: 'M2.7 10.3a1 1 0 0 0 0 1.4l8.6 8.6a1 1 0 0 0 1.4 0l8.6-8.6a1 1 0 0 0 0-1.4l-8.6-8.6a1 1 0 0 0-1.4 0z' },
+  triangle: { cat: 'Shapes', d: 'M13.73 4a2 2 0 0 0-3.46 0L2.74 17a2 2 0 0 0 1.73 3h15.06a2 2 0 0 0 1.73-3z' },
+  hexagon:  { cat: 'Shapes', d: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' },
+  circle:   { cat: 'Shapes', d: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z' },
+  square:   { cat: 'Shapes', d: 'M3 3h18v18H3z' },
+  octagon:  { cat: 'Shapes', d: 'M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z' },
+
+  // Nature
+  leaf:     { cat: 'Nature', d: 'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96a1 1 0 0 1 1.8.78c-3 12.5-7 17-10 17z M2 21c0-3 1.85-5.36 5.08-6' },
+  flower:   { cat: 'Nature', d: 'M12 7.5a4.5 4.5 0 1 1 4.5 4.5M12 7.5A4.5 4.5 0 1 0 7.5 12M12 7.5V9m-4.5 3a4.5 4.5 0 1 0 4.5 4.5M7.5 12H9m7.5 0a4.5 4.5 0 1 1-4.5 4.5m4.5-4.5H15m-3 4.5V15 M12 7.5V2 M12 22v-2.5 M19.071 4.929l-1.061 1.061 M5.99 18.01l-1.06 1.06 M22 12h-5 M7 12H2 M19.071 19.071l-1.061-1.061 M5.99 5.99l-1.06-1.06' },
+  sun:      { cat: 'Nature', d: 'M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41' },
+  moon:     { cat: 'Nature', d: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z' },
+  mountain: { cat: 'Nature', d: 'M8 3l4 8 5-5 5 15H2L8 3z' },
+  cloud:    { cat: 'Nature', d: 'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z' },
+  flame:    { cat: 'Nature', d: 'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z' },
+  droplet:  { cat: 'Nature', d: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z' },
+  tree:     { cat: 'Nature', d: 'M17 14v7 M9 14v7 M13 3a4 4 0 0 0-4 4v3a4 4 0 0 0-4 4 4 4 0 0 0 4 4h10a4 4 0 0 0 4-4 4 4 0 0 0-4-4V7a4 4 0 0 0-4-4z' },
+  snowflake:{ cat: 'Nature', d: 'M2 12h20 M12 2v20 M20 16l-4-4 4-4 M4 8l4 4-4 4 M16 4l-4 4-4-4 M8 20l4-4 4 4' },
+
+  // Tech
+  cpu:      { cat: 'Tech', d: 'M4 4h16v16H4z M9 1v3 M15 1v3 M9 20v3 M15 20v3 M20 9h3 M20 14h3 M1 9h3 M1 14h3 M9 9h6v6H9z' },
+  code:     { cat: 'Tech', d: 'M16 18l6-6-6-6 M8 6l-6 6 6 6' },
+  terminal: { cat: 'Tech', d: 'M4 17l6-6-6-6 M12 19h8' },
+  zap:      { cat: 'Tech', d: 'M13 2L3 14h9l-1 8 10-12h-9z' },
+  rocket:   { cat: 'Tech', d: 'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0 M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5' },
+  bolt:     { cat: 'Tech', d: 'M13 2L3 14h9l-1 8 10-12h-9z' },
+  satellite:{ cat: 'Tech', d: 'M13 7l-1.65 1.65a4 4 0 0 0 0 5.65l3.4 3.4a4 4 0 0 0 5.65 0L22 16 M18 13l-1.5-1.5 M11 17l-1.5-1.5 M8.5 8.5L7 7l-3 3 1.5 1.5L4 13l3 3 1.5-1.5L10 16l3-3-1.5-1.5L13 10z' },
+  wifi:     { cat: 'Tech', d: 'M5 12.55a11 11 0 0 1 14 0 M1.42 9a16 16 0 0 1 21.16 0 M8.53 16.11a6 6 0 0 1 6.95 0 M12 20h.01' },
+  globe:    { cat: 'Tech', d: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z' },
+  database: { cat: 'Tech', d: 'M12 8c5 0 9-1.5 9-3s-4-3-9-3-9 1.5-9 3 4 3 9 3z M3 5v6c0 1.5 4 3 9 3s9-1.5 9-3V5 M3 11v6c0 1.5 4 3 9 3s9-1.5 9-3v-6' },
+
+  // Objects
+  camera:   { cat: 'Objects', d: 'M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+  music:    { cat: 'Objects', d: 'M9 18V5l12-2v13 M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z M21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z' },
+  headphones: { cat: 'Objects', d: 'M3 18v-6a9 9 0 0 1 18 0v6 M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z' },
+  book:     { cat: 'Objects', d: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z' },
+  briefcase:{ cat: 'Objects', d: 'M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z' },
+  gift:     { cat: 'Objects', d: 'M20 12v10H4V12 M2 7h20v5H2z M12 22V7 M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z' },
+  key:      { cat: 'Objects', d: 'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4' },
+  lock:     { cat: 'Objects', d: 'M5 11h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z M7 11V7a5 5 0 0 1 10 0v4' },
+  crown:    { cat: 'Objects', d: 'M2 4l3 12h14l3-12-6 7-4-7-4 7z M5 21h14' },
+  anchor:   { cat: 'Objects', d: 'M12 22V8 M5 12H2a10 10 0 0 0 20 0h-3 M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6z' },
+  coffee:   { cat: 'Objects', d: 'M17 8h1a4 4 0 1 1 0 8h-1 M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z M6 1v3 M10 1v3 M14 1v3' },
+  bookmark: { cat: 'Objects', d: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z' },
+
+  // Symbols
+  infinity: { cat: 'Symbols', d: 'M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.739-8z' },
+  target:   { cat: 'Symbols', d: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' },
+  compass:  { cat: 'Symbols', d: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z' },
+  award:    { cat: 'Symbols', d: 'M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M8.21 13.89L7 23l5-3 5 3-1.21-9.12' },
+  shield:   { cat: 'Symbols', d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+  feather:  { cat: 'Symbols', d: 'M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z M16 8L2 22 M17.5 15H9' },
+  sparkles: { cat: 'Symbols', d: 'M12 3l1.91 5.66 5.59.81L15 13.75 16.36 19 12 16.23 7.64 19 9 13.75 4.5 9.47l5.59-.81z' },
+  eye:      { cat: 'Symbols', d: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z' },
+  smile:    { cat: 'Symbols', d: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M8 14s1.5 2 4 2 4-2 4-2 M9 9h.01 M15 9h.01' },
+
+  // Animals
+  cat:      { cat: 'Animals', d: 'M12 5C9 3 4 4 4 8c0 2 1 4 3 5l-1 8h4l1-3 1 3h4l-1-8c2-1 3-3 3-5 0-4-5-5-8-3z M8 9h.01 M16 9h.01' },
+  fish:     { cat: 'Animals', d: 'M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6z M18 12v.5 M16 17.93a9.77 9.77 0 0 1 0-11.86 M7 10.67C5 9 2 9.67 2 9.67c.55 1.83.81 3.34 0 5 0 0 3 .67 5-1 0 0-1 6 6 6.67 0 0-1.5-2.67-1.5-5' },
+  bird:     { cat: 'Animals', d: 'M16 7h.01 M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20 M20 7L13.7 5.3' },
+  bug:      { cat: 'Animals', d: 'M8 2l1.88 1.88 M14.12 3.88L16 2 M9 7.13v-1a3.003 3.003 0 1 1 6 0v1 M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6z M12 20v-9 M6.53 9C4.6 8.8 3 7.1 3 5 M6 13H2 M3 21c0-2.1 1.7-3.9 3.8-4 M20.97 5c0 2.1-1.6 3.8-3.5 4 M22 13h-4 M17.2 17c2.1.1 3.8 1.9 3.8 4' },
+
+  // Letters/Plus
+  plus:     { cat: 'Other', d: 'M12 5v14 M5 12h14' },
+  asterisk: { cat: 'Other', d: 'M12 6v12 M17.196 9L6.804 15 M6.804 9l10.392 6' },
+  hash:     { cat: 'Other', d: 'M4 9h16 M4 15h16 M10 3L8 21 M16 3l-2 18' },
+  at:       { cat: 'Other', d: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8' },
+};
+const ICON_CATS = ['All', ...Array.from(new Set(Object.values(ICONS).map(i => i.cat)))];
+
+const state = {
+  mode: 'letter',
+  letter: 'M',
+  icon: 'star',
+  iconCat: 'All',
+  shape: 'squircle',
+  palette: 0,
+  customPalette: null,
+  customStops: null,
+  customLabel: null,
+  font: 'Manrope',
+  weight: 800,
+  scale: 0.5,
+  pattern: 'none',
+  monogram: 1,
+  textColor: 'auto',
+};
+function getColors() { return state.customPalette || PALETTES[state.palette].colors; }
+function getStops() { return state.customStops || stops; }
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Logomark')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Mode</div>
+      <div class="chips" id="modeChips">
+        <div class="chip active" data-m="letter">Letter</div>
+        <div class="chip" data-m="icon">Icon</div>
+      </div>
+    </div>
+    <div class="sec" id="letterSec">
+      <div class="sec-title">Letter</div>
+      <input type="text" id="letter" value="M" maxlength="3" style="font-family:'SF Mono',monospace;text-align:center;font-size:18px;font-weight:600">
+    </div>
+    <div class="sec" id="iconSec" style="display:none">
+      <div class="sec-title">Icon <span class="count">${Object.keys(ICONS).length}</span></div>
+      <div class="chips" id="iconCatChips" style="margin-bottom:12px">
+        ${ICON_CATS.map(c => `<div class="chip ${c==='All'?'active':''}" data-c="${c}">${c}</div>`).join('')}
+      </div>
+      <div class="icon-grid" id="iconGrid"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Shape</div>
+      <div class="chips" id="shapeChips">
+        ${SHAPES.map(s => `<div class="chip ${s==='squircle'?'active':''}" data-s="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Palette <span class="count">${PALETTES.length}</span></div>
+      <div class="thumb-grid" id="paletteGrid"></div>
+    </div>
+  </div>
+  ${meshy.hintHtml('Click <strong>Generate</strong> to seed new variations')}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Letter</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Font</div>
+      <select id="font">${FONTS.map(f => `<option value="${f}" ${f===state.font?'selected':''}>${f}</option>`).join('')}</select>
+      <div class="row" style="margin-top:14px"><label>Weight</label><span class="val" id="weightVal">800</span></div>
+      <input type="range" id="weight" min="300" max="900" step="100" value="800">
+      <div class="row" style="margin-top:14px"><label>Size</label><span class="val" id="scaleVal">50%</span></div>
+      <input type="range" id="scale" min="25" max="80" value="50">
+      <div class="row" style="margin-top:14px"><label>Color</label></div>
+      <div class="chips" id="textColorChips">
+        <div class="chip active" data-c="auto">Auto</div>
+        <div class="chip" data-c="white">White</div>
+        <div class="chip" data-c="black">Black</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Texture</div>
+      <div class="chips" id="patternChips">
+        <div class="chip active" data-p="none">None</div>
+        <div class="chip" data-p="grain">Grain</div>
+        <div class="chip" data-p="dots">Dots</div>
+        <div class="chip" data-p="rings">Rings</div>
+      </div>
+    </div>
+  </div>
+`;
+
+function hexToRgb(h){ return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+function lum(rgb) { const a = rgb.map(v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);}); return a[0]*0.2126+a[1]*0.7152+a[2]*0.0722; }
+
+function shapePath(shape, s) {
+  switch (shape) {
+    case 'circle': return `<circle cx="${s/2}" cy="${s/2}" r="${s/2}"/>`;
+    case 'squircle': return `<rect width="${s}" height="${s}" rx="${s*0.32}"/>`;
+    case 'rounded': return `<rect width="${s}" height="${s}" rx="${s*0.16}"/>`;
+    case 'hexagon': {
+      const cx = s/2, cy = s/2, r = s/2;
+      const pts = [];
+      for (let i = 0; i < 6; i++) { const a = (Math.PI/3)*i - Math.PI/2; pts.push(`${(cx+r*Math.cos(a)).toFixed(1)},${(cy+r*Math.sin(a)).toFixed(1)}`); }
+      return `<polygon points="${pts.join(' ')}"/>`;
+    }
+    case 'diamond': {
+      return `<polygon points="${s/2},0 ${s},${s/2} ${s/2},${s} 0,${s/2}"/>`;
+    }
+    case 'blob': {
+      // simple smooth blob
+      const cx = s/2, cy = s/2;
+      const n = 7, variance = 0.18;
+      const pts = [];
+      for (let i = 0; i < n; i++) {
+        const angle = (i/n)*Math.PI*2;
+        const r = (s/2) * (0.9 + Math.sin(i*1.7) * variance);
+        pts.push([cx+Math.cos(angle)*r, cy+Math.sin(angle)*r]);
+      }
+      let d = `M ${pts[0][0]},${pts[0][1]} `;
+      for (let i = 0; i < n; i++) {
+        const p0 = pts[i], p1 = pts[(i+1)%n], p2 = pts[(i+2)%n], pPrev = pts[(i+n-1)%n];
+        const c0x = p0[0] + (p1[0]-pPrev[0])/6, c0y = p0[1] + (p1[1]-pPrev[1])/6;
+        const c1x = p1[0] - (p2[0]-p0[0])/6, c1y = p1[1] - (p2[1]-p0[1])/6;
+        d += `C ${c0x.toFixed(1)},${c0y.toFixed(1)} ${c1x.toFixed(1)},${c1y.toFixed(1)} ${p1[0].toFixed(1)},${p1[1].toFixed(1)} `;
+      }
+      return `<path d="${d}Z"/>`;
+    }
+  }
+}
+
+function buildSvg(overrides = {}, exportSize = 400) {
+  const s = { ...state, ...overrides };
+  const colors = s.customPalette || PALETTES[s.palette].colors;
+  const localStops = s.customStops || stops;
+  const letter = (s.letter || '?').slice(0, 2).toUpperCase();
+  let textCol = s.textColor;
+  if (textCol === 'auto') {
+    const avg = colors.reduce((a, c) => { const r = hexToRgb(c); return [a[0]+r[0], a[1]+r[1], a[2]+r[2]]; }, [0,0,0]).map(x => x/colors.length);
+    textCol = lum(avg) > 0.55 ? '#0a0a0a' : '#ffffff';
+  } else {
+    textCol = textCol === 'white' ? '#ffffff' : '#0a0a0a';
+  }
+  const grads = colors.map((c, i) => {
+    const [x, y] = localStops[i % localStops.length];
+    return `<radialGradient id="g${i}" cx="${x}%" cy="${y}%" r="55%"><stop offset="0%" stop-color="${c}" stop-opacity="0.95"/><stop offset="100%" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+  }).join('');
+  const layers = colors.map((c, i) =>
+    `<rect width="100" height="100" fill="url(#g${i})" style="mix-blend-mode:${i===0?'normal':'screen'}"/>`
+  ).join('');
+
+  let pattern = '';
+  if (s.pattern === 'grain') {
+    pattern = `<filter id="n"><feTurbulence type="fractalNoise" baseFrequency="1.5" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"/></filter><rect width="100" height="100" filter="url(#n)" opacity="0.25" style="mix-blend-mode:overlay"/>`;
+  } else if (s.pattern === 'dots') {
+    let dots = '';
+    for (let r = 0; r < 10; r++) for (let c = 0; c < 10; c++) dots += `<circle cx="${c*10+5}" cy="${r*10+5}" r="0.6" fill="${textCol}" opacity="0.18"/>`;
+    pattern = dots;
+  } else if (s.pattern === 'rings') {
+    pattern = `<g fill="none" stroke="${textCol}" stroke-opacity="0.15" stroke-width="0.6"><circle cx="50" cy="50" r="20"/><circle cx="50" cy="50" r="35"/><circle cx="50" cy="50" r="48"/></g>`;
+  }
+
+  let foreground;
+  if (s.mode === 'icon') {
+    const icon = ICONS[s.icon] || ICONS.star;
+    // scale 24x24 icon into 100x100 box, sized by s.scale (0.25..0.80 → roughly 25..80% of width)
+    const iconSize = 100 * (0.55 + s.scale * 0.6); // ~55%..91% of box width
+    const tx = (100 - iconSize) / 2, ty = (100 - iconSize) / 2;
+    const scale = iconSize / 24;
+    // Use both stroke-and-fill style so outline icons display correctly
+    foreground = `<g transform="translate(${tx} ${ty}) scale(${scale})" stroke="${textCol}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="${icon.d}"/></g>`;
+  } else {
+    const fontSize = (letter.length === 1 ? 60 : 48) * (s.scale / 0.5);
+    foreground = `<text x="50" y="50" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-family="${s.font}, sans-serif" font-weight="${s.weight}" font-size="${fontSize}" letter-spacing="-0.02em">${letter}</text>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${exportSize}" height="${exportSize}">
+    <defs>
+      ${grads}
+      <clipPath id="clip">${shapePath(s.shape, 100)}</clipPath>
+    </defs>
+    <g clip-path="url(#clip)">
+      <rect width="100" height="100" fill="${colors[0]}"/>
+      ${layers}
+      ${pattern}
+    </g>
+    ${foreground}
+  </svg>`;
+}
+
+function renderPaletteGrid() {
+  const wrap = document.getElementById('paletteGrid');
+  wrap.innerHTML = '';
+  if (state.customPalette) {
+    const el = document.createElement('div');
+    el.className = 'thumb-card active';
+    const cs = state.customStops || stops;
+    el.style.background = state.customPalette.map((c, j) => `radial-gradient(at ${cs[j][0]}% ${cs[j][1]}%, ${c} 0px, transparent 50%)`).join(', ') + `, ${state.customPalette[0]}`;
+    el.innerHTML = `<div class="name">✨ ${state.customLabel || 'Custom'}</div>`;
+    wrap.appendChild(el);
+  }
+  PALETTES.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'thumb-card' + (!state.customPalette && i === state.palette ? ' active' : '');
+    el.style.background = p.colors.map((c, j) => `radial-gradient(at ${stops[j][0]}% ${stops[j][1]}%, ${c} 0px, transparent 50%)`).join(', ') + `, ${p.colors[0]}`;
+    el.innerHTML = `<div class="name">${p.name}</div>`;
+    el.addEventListener('click', () => {
+      state.palette = i;
+      state.customPalette = null; state.customStops = null; state.customLabel = null;
+      renderPaletteGrid(); render();
+    });
+    wrap.appendChild(el);
+  });
+}
+
+function renderVariations() {
+  const wrap = document.getElementById('variations');
+  wrap.innerHTML = '';
+  // 8 randomized variations
+  const seedRand = (i) => {
+    const palettes = [...Array(PALETTES.length).keys()];
+    const shape = SHAPES[(i * 3 + state.palette) % SHAPES.length];
+    const palette = palettes[(i + state.palette) % PALETTES.length];
+    return { shape, palette };
+  };
+  for (let i = 0; i < 8; i++) {
+    const v = seedRand(i);
+    const isActive = v.shape === state.shape && v.palette === state.palette;
+    const el = document.createElement('div');
+    el.className = 'var-tile' + (isActive ? ' active' : '');
+    el.innerHTML = buildSvg(v, 80);
+    el.addEventListener('click', () => {
+      state.shape = v.shape; state.palette = v.palette;
+      document.querySelectorAll('#shapeChips .chip').forEach(c => c.classList.toggle('active', c.dataset.s === state.shape));
+      renderPaletteGrid(); render();
+    });
+    wrap.appendChild(el);
+  }
+}
+
+function render() {
+  document.getElementById('stage').innerHTML = buildSvg();
+  renderVariations();
+}
+
+function renderIconGrid() {
+  const wrap = document.getElementById('iconGrid');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const names = Object.keys(ICONS).filter(n => state.iconCat === 'All' || ICONS[n].cat === state.iconCat);
+  names.forEach(name => {
+    const el = document.createElement('div');
+    el.className = 'icon-pick' + (name === state.icon ? ' active' : '');
+    el.title = name;
+    el.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="${ICONS[name].d}"/></svg>`;
+    el.addEventListener('click', () => { state.icon = name; renderIconGrid(); render(); });
+    wrap.appendChild(el);
+  });
+}
+
+document.getElementById('modeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#modeChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.mode = c.dataset.m;
+  document.getElementById('letterSec').style.display = state.mode === 'letter' ? 'block' : 'none';
+  document.getElementById('iconSec').style.display = state.mode === 'icon' ? 'block' : 'none';
+  if (state.mode === 'icon') renderIconGrid();
+  render();
+});
+
+document.getElementById('iconCatChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#iconCatChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.iconCat = c.dataset.c;
+  renderIconGrid();
+});
+
+document.getElementById('letter').addEventListener('input', e => { state.letter = e.target.value; render(); });
+document.getElementById('shapeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#shapeChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.shape = c.dataset.s;
+  render();
+});
+document.getElementById('font').addEventListener('change', e => { state.font = e.target.value; render(); });
+document.getElementById('weight').addEventListener('input', e => {
+  state.weight = +e.target.value;
+  document.getElementById('weightVal').textContent = state.weight;
+  render();
+});
+document.getElementById('scale').addEventListener('input', e => {
+  state.scale = (+e.target.value) / 100;
+  document.getElementById('scaleVal').textContent = e.target.value + '%';
+  render();
+});
+document.getElementById('textColorChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#textColorChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.textColor = c.dataset.c;
+  render();
+});
+document.getElementById('patternChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#patternChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.pattern = c.dataset.p;
+  render();
+});
+document.getElementById('randomBtn').addEventListener('click', () => {
+  state.shape = SHAPES[Math.floor(Math.random()*SHAPES.length)];
+  state.palette = Math.floor(Math.random()*PALETTES.length);
+  state.customPalette = null; state.customStops = null; state.customLabel = null;
+  state.font = FONTS[Math.floor(Math.random()*FONTS.length)];
+  if (state.mode === 'icon') {
+    const names = Object.keys(ICONS);
+    state.icon = names[Math.floor(Math.random()*names.length)];
+    renderIconGrid();
+  }
+  document.getElementById('font').value = state.font;
+  document.querySelectorAll('#shapeChips .chip').forEach(c => c.classList.toggle('active', c.dataset.s === state.shape));
+  renderPaletteGrid(); render();
+});
+
+document.getElementById('surpriseBtn').addEventListener('click', () => {
+  const harmonies = ['analogous','complementary','triadic','tetradic','monochromatic','split','warm','cool','duotone'];
+  const harmony = meshy.pickOne(harmonies);
+  state.customPalette = meshy.randomPalette({ harmony });
+  state.customStops = meshy.randomStops();
+  state.customLabel = harmony.charAt(0).toUpperCase() + harmony.slice(1);
+  state.shape = meshy.pickOne(SHAPES);
+  state.font = meshy.pickOne(FONTS);
+  state.weight = meshy.pickOne([500, 600, 700, 800, 900]);
+  state.pattern = meshy.chance(0.6) ? 'none' : meshy.pickOne(['grain','dots','rings']);
+  state.scale = 0.35 + Math.random() * 0.3;
+  if (state.mode === 'icon') {
+    const names = Object.keys(ICONS);
+    state.icon = names[Math.floor(Math.random() * names.length)];
+    renderIconGrid();
+  }
+  document.getElementById('font').value = state.font;
+  document.getElementById('weight').value = state.weight;
+  document.getElementById('weightVal').textContent = state.weight;
+  document.getElementById('scale').value = Math.round(state.scale * 100);
+  document.getElementById('scaleVal').textContent = Math.round(state.scale * 100) + '%';
+  document.querySelectorAll('#shapeChips .chip').forEach(c => c.classList.toggle('active', c.dataset.s === state.shape));
+  document.querySelectorAll('#patternChips .chip').forEach(c => c.classList.toggle('active', c.dataset.p === state.pattern));
+  renderPaletteGrid(); render();
+  meshy.toast(`✨ ${state.customLabel} harmony`);
+});
+
+document.getElementById('svgBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg({}, 512)], { type: 'image/svg+xml' });
+  const link = document.createElement('a');
+  link.download = `logomark-${state.letter}.svg`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  meshy.toast('SVG downloaded');
+});
+document.getElementById('pngBtn').addEventListener('click', () => {
+  const size = 1024;
+  const svgStr = buildSvg({}, size);
+  const img = new Image();
+  const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    c.getContext('2d').drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a');
+    link.download = `logomark-${state.letter}.png`;
+    link.href = c.toDataURL('image/png');
+    link.click();
+    meshy.toast('PNG downloaded');
+  };
+  img.src = url;
+});
+
+renderPaletteGrid();
+render();
+</script>
+</body>
+</html>

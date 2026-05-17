@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Soft Shadow Generator · meshy.fun</title>
+<meta name="description" content="Multi-layer realistic shadows. One elevation slider, copy CSS." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">Shape a shadow.</div>
+      <button class="btn" id="darkToggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        Dark
+      </button>
+      <button class="btn primary" id="copyBtn">Copy CSS</button>
+    </div>
+    <div class="canvas dotted" id="canvas">
+      <div class="shadow-card" id="card"></div>
+    </div>
+    <div class="canvas-bottom">
+      <div class="output-wrap">
+        <pre class="output" id="cssOut"></pre>
+        <button class="copy-btn" id="copyBtn2">Copy</button>
+      </div>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; }
+  .shadow-card {
+    width: 220px; height: 220px;
+    background: #fff;
+    border-radius: 18px;
+    transition: box-shadow .25s ease;
+  }
+  .canvas.dark { background: #0a0a0a; background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 0); }
+  .canvas.dark .shadow-card { background: #1a1a1a; }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const ELEVATIONS = {
+  1: [[0,1,2,0.06],[0,1,1,0.04]],
+  2: [[0,1,2,0.06],[0,2,4,0.06],[0,4,8,0.06]],
+  3: [[0,1,1,0.04],[0,2,4,0.05],[0,4,8,0.06],[0,8,16,0.07]],
+  4: [[0,1,1,0.03],[0,2,4,0.04],[0,4,8,0.05],[0,8,16,0.06],[0,16,32,0.07]],
+  5: [[0,1,1,0.03],[0,2,4,0.04],[0,4,8,0.05],[0,8,16,0.06],[0,16,32,0.07],[0,32,60,0.08]],
+  6: [[0,2,2,0.03],[0,4,6,0.04],[0,8,14,0.05],[0,16,28,0.06],[0,32,56,0.07],[0,60,100,0.09]],
+  7: [[0,2,2,0.04],[0,4,6,0.05],[0,8,14,0.06],[0,16,28,0.07],[0,32,56,0.08],[0,60,100,0.1],[0,80,160,0.1]],
+  8: [[0,2,2,0.04],[0,4,6,0.05],[0,8,14,0.06],[0,20,40,0.07],[0,40,80,0.08],[0,80,160,0.1],[0,120,240,0.12]],
+};
+const state = { elev: 4, intensity: 100, spread: 100, yOffset: 100, warmth: 0, dark: false };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Shadow')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Elevation</div>
+      <div class="chips" id="elevChips">
+        ${[1,2,3,4,5,6,7,8].map(e => `<div class="chip ${e===4?'active':''}" data-e="${e}">${e}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Preset Styles</div>
+      <div class="chips" id="styleChips">
+        <div class="chip active" data-s="standard">Standard</div>
+        <div class="chip" data-s="material">Material</div>
+        <div class="chip" data-s="ambient">Ambient</div>
+        <div class="chip" data-s="floating">Floating</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Intensity</label><span class="val" id="intensityVal">100%</span></div>
+      <input type="range" id="intensity" min="0" max="200" value="100">
+      <div class="row" style="margin-top:14px"><label>Spread</label><span class="val" id="spreadVal">100%</span></div>
+      <input type="range" id="spread" min="20" max="200" value="100">
+      <div class="row" style="margin-top:14px"><label>Y offset</label><span class="val" id="yOffsetVal">100%</span></div>
+      <input type="range" id="yOffset" min="0" max="200" value="100">
+      <div class="row" style="margin-top:14px"><label>Warmth</label><span class="val" id="warmthVal">0</span></div>
+      <input type="range" id="warmth" min="-30" max="30" value="0">
+    </div>
+  </div>
+`;
+
+function buildShadow() {
+  const layers = ELEVATIONS[state.elev];
+  const im = state.intensity/100, sp = state.spread/100, yo = state.yOffset/100;
+  const r = state.warmth > 0 ? Math.min(60, state.warmth*2) : 0;
+  const b = state.warmth < 0 ? Math.min(60, -state.warmth*2) : 0;
+  return layers.map(([x,y,bl,a]) => `${x}px ${(y*yo).toFixed(0)}px ${(bl*sp).toFixed(0)}px rgba(${r},0,${b},${(a*im).toFixed(3)})`).join(', ');
+}
+
+function render() {
+  const css = buildShadow();
+  document.getElementById('card').style.boxShadow = css;
+  document.getElementById('cssOut').textContent = `box-shadow: ${css};`;
+  document.getElementById('canvas').classList.toggle('dark', state.dark);
+}
+
+document.getElementById('elevChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#elevChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.elev = +c.dataset.e;
+  render();
+});
+document.getElementById('styleChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#styleChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  const s = c.dataset.s;
+  const presets = {
+    standard: { intensity: 100, spread: 100, yOffset: 100, warmth: 0 },
+    material: { intensity: 130, spread: 120, yOffset: 130, warmth: 0 },
+    ambient: { intensity: 80, spread: 180, yOffset: 50, warmth: 0 },
+    floating: { intensity: 110, spread: 160, yOffset: 180, warmth: 10 },
+  };
+  Object.assign(state, presets[s]);
+  ['intensity','spread','yOffset','warmth'].forEach(k => {
+    document.getElementById(k).value = state[k];
+    document.getElementById(k+'Val').textContent = state[k] + (k==='warmth'?'':'%');
+  });
+  render();
+});
+
+function bindRange(id, key, suffix='') {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = +e.target.value;
+    document.getElementById(id+'Val').textContent = state[key]+suffix;
+    render();
+  });
+}
+bindRange('intensity','intensity','%');
+bindRange('spread','spread','%');
+bindRange('yOffset','yOffset','%');
+bindRange('warmth','warmth');
+
+document.getElementById('darkToggle').addEventListener('click', () => {
+  state.dark = !state.dark;
+  document.getElementById('darkToggle').classList.toggle('primary', state.dark);
+  render();
+});
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(`box-shadow: ${buildShadow()};`, 'CSS copied'));
+document.getElementById('copyBtn2').addEventListener('click', () => meshy.copy(`box-shadow: ${buildShadow()};`, 'CSS copied'));
+
+render();
+</script>
+</body>
+</html>

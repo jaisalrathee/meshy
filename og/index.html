@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>OG Image Generator · meshy.fun</title>
+<meta name="description" content="Generate beautiful 1200×630 OG images with mesh background. Pick template, add title, export PNG." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A social image.</div>
+      <div style="font-size:12px;color:var(--ink-3);margin-right:auto;margin-left:14px;">1200 × 630</div>
+      <button class="btn primary" id="exportBtn">Export PNG</button>
+    </div>
+    <div class="og-wrap">
+      <div class="og-stage" id="ogStage"></div>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .og-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  .og-stage {
+    width: 100%; max-width: 100%; aspect-ratio: 1200/630;
+    border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-lg);
+    position: relative;
+  }
+  .og-content { position: absolute; inset: 0; padding: 60px; display: flex; flex-direction: column; justify-content: center; color: #fff; text-shadow: 0 2px 16px rgba(0,0,0,.25); }
+  .og-content.tpl-card .og-card { background: rgba(255,255,255,.14); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,.25); border-radius: 20px; padding: 40px; max-width: 80%; }
+  .og-eyebrow { font-size: 16px; opacity: .85; margin-bottom: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+  .og-title { font-size: 56px; font-weight: 700; line-height: 1.08; margin: 0; letter-spacing: -0.02em; }
+  .og-title.serif { font-family: 'Instrument Serif', serif; font-weight: 400; font-style: italic; font-size: 76px; }
+  .og-sub { font-size: 22px; margin-top: 14px; opacity: .85; font-weight: 400; max-width: 80%; }
+  .og-foot { position: absolute; bottom: 36px; left: 60px; font-size: 16px; opacity: .8; font-weight: 600; }
+  .og-content.tpl-right { align-items: flex-end; text-align: right; }
+  .og-content.tpl-right .og-sub { margin-left: auto; }
+  .og-content.tpl-center { align-items: center; text-align: center; }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const BGS = [
+  { name: 'Iris', colors: ['#667EEA','#764BA2','#F093FB','#F5576C','#4FACFE'] },
+  { name: 'Sunset', colors: ['#FF6B6B','#FFA07A','#FFD56B','#FF8E72','#FF5E78'] },
+  { name: 'Midnight', colors: ['#0F2027','#203A43','#2C5364','#1F1C2C','#928DAB'] },
+  { name: 'Ocean', colors: ['#A1C4FD','#C2E9FB','#E0C3FC','#8EC5FC','#B5FFFC'] },
+  { name: 'Mocha', colors: ['#A47864','#C9A47C','#7B5944','#E6CFB5','#8D6748'] },
+  { name: 'Cyber', colors: ['#FF0080','#7928CA','#FF4D4D','#F9CB28','#0070F3'] },
+  { name: 'Peach', colors: ['#FFB199','#FF8FA3','#FFC8A2','#FFD6A5','#FF9A8B'] },
+  { name: 'Mint', colors: ['#D4FC79','#96E6A1','#C2E9FB','#A1FFCE','#FAFFD1'] },
+];
+const stops = [[20,25],[75,30],[40,75],[80,80],[50,50]];
+
+const state = {
+  bg: 0, tpl: 'left', type: 'sans',
+  eyebrow: 'meshy.fun',
+  title: 'Beautiful design tools, free forever',
+  sub: 'A constellation of focused design utilities',
+  foot: 'meshy.fun',
+};
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('OG')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Template</div>
+      <div class="chips" id="tplChips">
+        <div class="chip active" data-tpl="left">Left</div>
+        <div class="chip" data-tpl="center">Centered</div>
+        <div class="chip" data-tpl="right">Right</div>
+        <div class="chip" data-tpl="card">Glass card</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Background <span class="count">${BGS.length}</span></div>
+      <div class="thumb-grid" id="bgPresets"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Typeface</div>
+      <div class="chips" id="typeChips">
+        <div class="chip active" data-type="sans">Sans</div>
+        <div class="chip" data-type="serif">Serif italic</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Content</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Eyebrow</label></div>
+      <input type="text" id="eyebrow" value="meshy.fun">
+      <div class="row" style="margin-top:12px"><label>Title</label></div>
+      <input type="text" id="title" value="Beautiful design tools, free forever">
+      <div class="row" style="margin-top:12px"><label>Subtitle</label></div>
+      <input type="text" id="sub" value="A constellation of focused design utilities">
+      <div class="row" style="margin-top:12px"><label>Footer</label></div>
+      <input type="text" id="foot" value="meshy.fun">
+    </div>
+  </div>
+`;
+
+function bgCss(idx) {
+  const c = BGS[idx].colors;
+  return c.map((col,i) => `radial-gradient(at ${stops[i][0]}% ${stops[i][1]}%, ${col} 0px, transparent 50%)`).join(', ') + `, ${c[0]}`;
+}
+
+function renderPresets() {
+  const wrap = document.getElementById('bgPresets');
+  wrap.innerHTML = '';
+  BGS.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'thumb-card' + (i === state.bg ? ' active' : '');
+    el.style.background = bgCss(i);
+    el.innerHTML = `<div class="name">${b.name}</div>`;
+    el.addEventListener('click', () => { state.bg = i; renderPresets(); render(); });
+    wrap.appendChild(el);
+  });
+}
+
+function escape(s) { return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function innerHtml() {
+  return `
+    ${state.eyebrow ? `<div class="og-eyebrow">${escape(state.eyebrow)}</div>` : ''}
+    <h1 class="og-title ${state.type === 'serif' ? 'serif' : ''}">${escape(state.title)}</h1>
+    ${state.sub ? `<div class="og-sub">${escape(state.sub)}</div>` : ''}
+  `;
+}
+
+function render() {
+  const stage = document.getElementById('ogStage');
+  stage.innerHTML = '';
+  stage.style.background = bgCss(state.bg);
+  const content = document.createElement('div');
+  content.className = `og-content tpl-${state.tpl}`;
+  content.innerHTML = (state.tpl === 'card' ? `<div class="og-card">${innerHtml()}</div>` : innerHtml())
+    + (state.foot ? `<div class="og-foot">${escape(state.foot)}</div>` : '');
+  stage.appendChild(content);
+}
+
+['eyebrow','title','sub','foot'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => { state[id] = e.target.value; render(); });
+});
+document.getElementById('tplChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#tplChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.tpl = c.dataset.tpl;
+  render();
+});
+document.getElementById('typeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#typeChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.type = c.dataset.type;
+  render();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const W = 1200, H = 630;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const c = BGS[state.bg].colors;
+  ctx.fillStyle = c[0]; ctx.fillRect(0,0,W,H);
+  c.forEach((col,i) => {
+    const [px,py] = stops[i];
+    const cx = (px/100)*W, cy = (py/100)*H;
+    const r = Math.max(W,H)*0.55;
+    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,col); g.addColorStop(1,col+'00');
+    ctx.globalCompositeOperation = i===0?'source-over':'screen';
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  });
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#fff';
+  ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 4;
+  const padX = state.tpl === 'card' ? 140 : 60;
+  const align = state.tpl === 'right' ? 'right' : state.tpl === 'center' ? 'center' : 'left';
+  ctx.textAlign = align;
+  const tx = align === 'right' ? W - padX : align === 'center' ? W/2 : padX;
+  if (state.tpl === 'card') {
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    const cardX = padX-50, cardY = 130, cardW = W-2*(padX-50), cardH = H-260;
+    roundRect(ctx, cardX, cardY, cardW, cardH, 24); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 4;
+  }
+  let y = 220;
+  if (state.eyebrow) { ctx.font = '600 18px Inter, sans-serif'; ctx.fillText(state.eyebrow.toUpperCase(), tx, y); y += 36; }
+  ctx.font = state.type === 'serif' ? 'italic 400 84px "Instrument Serif", serif' : '700 64px Inter, sans-serif';
+  const lines = wrap(ctx, state.title, W-2*padX);
+  lines.forEach(l => { ctx.fillText(l, tx, y); y += state.type === 'serif' ? 90 : 72; });
+  if (state.sub) {
+    y += 6; ctx.font = '400 24px Inter, sans-serif'; ctx.globalAlpha = .85;
+    wrap(ctx, state.sub, W-2*padX).forEach(l => { ctx.fillText(l, tx, y); y += 34; });
+    ctx.globalAlpha = 1;
+  }
+  if (state.foot) {
+    ctx.textAlign = 'left'; ctx.font = '600 18px Inter, sans-serif'; ctx.globalAlpha = .8;
+    ctx.fillText(state.foot, 60, H-50);
+  }
+  const link = document.createElement('a');
+  link.download = 'og-' + Date.now() + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  meshy.toast('OG image exported');
+});
+
+function wrap(ctx, text, maxW) {
+  const words = text.split(' ');
+  const out = []; let cur = '';
+  for (const w of words) {
+    const t = cur ? cur+' '+w : w;
+    if (ctx.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+function roundRect(ctx,x,y,w,h,r) {
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+renderPresets(); render();
+</script>
+</body>
+</html>

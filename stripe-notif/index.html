@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Stripe Notification · meshy.fun</title>
+<meta name="description" content="Hand-drawn fake Stripe payment notifications. Editable name, amount, time." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Caveat:wght@400;500;600;700&family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A hand-drawn payment ping.</div>
+      <button class="btn" id="newSeedBtn">New variation</button>
+      <button class="btn" id="svgBtn">Download SVG</button>
+      <button class="btn primary" id="pngBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 40px; background: #fafafa; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.08); border-radius: 8px; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const PRESET_NAMES = ['Sarah Chen','Marcus Johnson','Priya Patel','Jakob Lindqvist','Yuki Tanaka','Diego Hernandez','Ava Thompson','Liam O\'Brien'];
+
+const state = {
+  customer: 'Sarah Chen',
+  amount: 49,
+  currency: 'USD',
+  product: 'Pro plan',
+  time: '2 min ago',
+  style: 'success',
+  paper: 'white',
+  accent: '#635bff',
+  seed: 4,
+  w: 900, h: 380,
+};
+
+const CURRENCIES = { USD:'$', EUR:'€', GBP:'£', JPY:'¥', INR:'₹', AUD:'A$', CAD:'C$' };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Stripe')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Style</div>
+      <div class="chips" id="styleChips">
+        <div class="chip active" data-s="success">Success</div>
+        <div class="chip" data-s="payout">Payout</div>
+        <div class="chip" data-s="subscription">New sub</div>
+        <div class="chip" data-s="trial">Trial → paid</div>
+        <div class="chip" data-s="refund">Refund</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Paper</div>
+      <div class="chips" id="paperChips">
+        <div class="chip active" data-p="white">White</div>
+        <div class="chip" data-p="cream">Cream</div>
+        <div class="chip" data-p="kraft">Kraft</div>
+        <div class="chip" data-p="dark">Dark</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Accent</div>
+      <input type="color" id="accent" value="#635bff">
+    </div>
+  </div>
+  ${meshy.hintHtml('Hit <strong>New variation</strong> for fresh wobble')}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Content</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Customer</label></div>
+      <input type="text" id="customer" value="${state.customer}">
+      <div class="row" style="margin-top:12px"><label>Amount</label></div>
+      <input type="number" id="amount" value="${state.amount}" step="1">
+      <div class="row" style="margin-top:12px"><label>Currency</label></div>
+      <select id="currency">${Object.keys(CURRENCIES).map(c => `<option ${c===state.currency?'selected':''}>${c}</option>`).join('')}</select>
+      <div class="row" style="margin-top:12px"><label>Product / plan</label></div>
+      <input type="text" id="product" value="${state.product}">
+      <div class="row" style="margin-top:12px"><label>Timestamp</label></div>
+      <input type="text" id="time" value="${state.time}">
+    </div>
+    <div class="sec">
+      <button class="btn full" id="randomNameBtn">Random customer</button>
+    </div>
+  </div>
+`;
+
+const PAPER_COLORS = {
+  white: { bg: '#ffffff', ink: '#0a0a0a', muted: '#525252' },
+  cream: { bg: '#FBF6E9', ink: '#2A1F10', muted: '#6B5A3F' },
+  kraft: { bg: '#D9B98A', ink: '#3A2410', muted: '#6B4A28' },
+  dark:  { bg: '#1B1B1F', ink: '#F5F5F5', muted: '#A0A0A0' },
+};
+
+function buildSvg() {
+  const W = state.w, H = state.h;
+  const r = meshy.seededRand(state.seed);
+  const p = PAPER_COLORS[state.paper];
+  const accent = state.accent;
+  const cardX = 60, cardY = 60, cardW = W - 120, cardH = H - 120;
+
+  // paper bg
+  let svg = `<rect width="${W}" height="${H}" fill="${p.bg}"/>`;
+
+  // outer "notification" wobbly rounded rect
+  svg += `<path d="${meshy.wobblyRoundRect(cardX, cardY, cardW, cardH, 20, 1.5, r)}" fill="${p.bg}" stroke="${p.ink}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // shadow stroke offset
+  svg += `<path d="${meshy.wobblyRoundRect(cardX+4, cardY+4, cardW, cardH, 20, 0.8, r)}" fill="none" stroke="${p.ink}" stroke-width="1.2" stroke-linecap="round" opacity="0.3"/>`;
+
+  // Icon circle (left)
+  const iconCx = cardX + 60, iconCy = cardY + cardH/2;
+  svg += `<path d="${meshy.wobblyCircle(iconCx, iconCy, 28, 1.8, r)}" fill="${accent}" stroke="${p.ink}" stroke-width="2" stroke-linejoin="round"/>`;
+  // Icon symbol — checkmark/dollar/etc per style
+  const sym = { success:'✓', payout:'→', subscription:'★', trial:'⚡', refund:'↺' }[state.style] || '✓';
+  svg += `<text x="${iconCx}" y="${iconCy + 2}" text-anchor="middle" dominant-baseline="middle" font-family="'Caveat', cursive" font-size="36" font-weight="700" fill="#fff">${sym}</text>`;
+
+  // Title text
+  const titleMap = {
+    success: 'Payment received',
+    payout: 'Payout sent',
+    subscription: 'New subscription',
+    trial: 'Trial converted',
+    refund: 'Refund issued',
+  };
+  const title = titleMap[state.style] || 'Payment received';
+  svg += `<text x="${iconCx + 50}" y="${cardY + 60}" font-family="'Caveat', cursive" font-size="34" font-weight="700" fill="${p.ink}">${escape(title)}</text>`;
+
+  // Amount big
+  const amountStr = (CURRENCIES[state.currency] || '$') + (+state.amount).toLocaleString();
+  svg += `<text x="${cardX + cardW - 40}" y="${cardY + 80}" text-anchor="end" font-family="'Caveat', cursive" font-size="56" font-weight="700" fill="${accent}">${escape(amountStr)}</text>`;
+
+  // Customer + product (subtitle)
+  const subtitle = `from ${state.customer} · ${state.product}`;
+  svg += `<text x="${iconCx + 50}" y="${cardY + 96}" font-family="'Kalam', cursive" font-size="20" font-weight="400" fill="${p.muted}">${escape(subtitle)}</text>`;
+
+  // Hand-drawn underline under amount
+  svg += `<path d="${meshy.wobblyLine(cardX + cardW - 180, cardY + 100, cardX + cardW - 40, cardY + 100, 1.5, r)}" stroke="${accent}" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.6"/>`;
+
+  // Bottom: timestamp + stripe label
+  svg += `<text x="${iconCx + 50}" y="${cardY + cardH - 30}" font-family="'Kalam', cursive" font-size="18" fill="${p.muted}">${escape(state.time)}</text>`;
+  svg += `<text x="${cardX + cardW - 40}" y="${cardY + cardH - 30}" text-anchor="end" font-family="'Caveat', cursive" font-size="22" font-weight="600" fill="${p.muted}">via Stripe</text>`;
+
+  // Tiny sketch decorations — stars in corners
+  if (state.style === 'success' || state.style === 'subscription' || state.style === 'trial') {
+    const drawStar = (cx, cy, size) => {
+      let d = '';
+      for (let i = 0; i < 5; i++) {
+        const a = i*Math.PI*2/5 - Math.PI/2;
+        const x1 = cx + Math.cos(a)*size, y1 = cy + Math.sin(a)*size;
+        const x2 = cx + Math.cos(a + Math.PI/2)*size*0.4, y2 = cy + Math.sin(a + Math.PI/2)*size*0.4;
+        d += meshy.wobblyLine(cx, cy, x1, y1, 0.8, r) + ' ';
+      }
+      return d;
+    };
+    svg += `<path d="${drawStar(cardX + cardW - 30, cardY + 30, 8)}" stroke="${accent}" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>`;
+    svg += `<path d="${drawStar(cardX + 25, cardY + cardH - 25, 6)}" stroke="${accent}" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.5"/>`;
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${svg}</svg>`;
+}
+
+function escape(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render() {
+  const svg = buildSvg();
+  document.getElementById('outSvg').outerHTML = svg.replace('<svg ', '<svg id="outSvg" ');
+}
+
+['customer','amount','currency','product','time'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => {
+    state[id] = e.target.value;
+    render();
+  });
+});
+document.getElementById('accent').addEventListener('input', e => { state.accent = e.target.value; render(); });
+['styleChips','paperChips'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    document.querySelectorAll(`#${id} .chip`).forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    state[id === 'styleChips' ? 'style' : 'paper'] = c.dataset[id === 'styleChips' ? 's' : 'p'];
+    render();
+  });
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); render(); });
+document.getElementById('randomNameBtn').addEventListener('click', () => {
+  state.customer = meshy.pickOne(PRESET_NAMES);
+  state.amount = [9, 19, 29, 49, 99, 199, 499, 999][Math.floor(Math.random()*8)];
+  document.getElementById('customer').value = state.customer;
+  document.getElementById('amount').value = state.amount;
+  render();
+});
+document.getElementById('svgBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const link = document.createElement('a'); link.download = 'stripe-notif.svg'; link.href = URL.createObjectURL(blob); link.click();
+});
+document.getElementById('pngBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = state.w*2; c.height = state.h*2;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.download = 'stripe-notif.png'; link.href = c.toDataURL('image/png'); link.click();
+  };
+  img.src = url;
+});
+
+render();
+</script>
+</body>
+</html>

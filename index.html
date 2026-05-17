@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>meshy.fun — beautiful design tools, free forever</title>
+<meta name="description" content="A constellation of small, beautiful design tools. Mesh gradients, soft shadows, OG images, color palettes, and more. Free, no signup." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+  .m-card .thumb { background: #f4f4f4; }
+  .m-card .thumb-mesh { background: conic-gradient(from 220deg at 50% 50%, #ff7a59, #ffd56b, #6be3c2, #6ba6ff, #b48cff, #ff7a59); }
+  .m-card .thumb-screenshot { background: radial-gradient(circle at 30% 30%, #ffb199, transparent 50%), radial-gradient(circle at 70% 70%, #b48cff, transparent 50%), #1a1a1a; position: relative; }
+  .m-card .thumb-screenshot::after { content: ''; position: absolute; inset: 18% 22%; background: #fff; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .m-card .thumb-shadow { background: #f4f4f4; background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,.06) 1px, transparent 0); background-size: 12px 12px; position: relative; }
+  .m-card .thumb-shadow::after { content: ''; position: absolute; inset: 25% 30%; background: #fff; border-radius: 8px; box-shadow: 0 1px 1px rgba(0,0,0,.04), 0 4px 8px rgba(0,0,0,.06), 0 16px 32px rgba(0,0,0,.08), 0 32px 60px rgba(0,0,0,.1); }
+  .m-card .thumb-noise { background: #fafafa; background-image: radial-gradient(circle at 1px 1px, #0a0a0a 1px, transparent 0); background-size: 12px 12px; }
+  .m-card .thumb-glass { background: linear-gradient(135deg, #ff7a59, #b48cff); position: relative; }
+  .m-card .thumb-glass::after { content: ''; position: absolute; inset: 25% 25%; background: rgba(255,255,255,.18); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.3); border-radius: 12px; }
+  .m-card .thumb-blob { background: #fff; display: flex; align-items: center; justify-content: center; }
+  .m-card .thumb-blob svg { width: 70%; height: 70%; }
+  .m-card .thumb-og { background: linear-gradient(135deg, #667eea, #764ba2); position: relative; }
+  .m-card .thumb-og::after { content: 'YOUR TITLE'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 14px; letter-spacing: .05em; }
+  .m-card .thumb-palette { background: linear-gradient(90deg, #ff7a59 0 20%, #ffd56b 20% 40%, #6be3c2 40% 60%, #6ba6ff 60% 80%, #b48cff 80%); }
+  .m-card .thumb-tailwind { background: linear-gradient(90deg, #f0f9ff 0 10%, #e0f2fe 10% 20%, #bae6fd 20% 30%, #7dd3fc 30% 40%, #38bdf8 40% 50%, #0ea5e9 50% 60%, #0284c7 60% 70%, #0369a1 70% 80%, #075985 80% 90%, #0c4a6e 90%); }
+  .m-card .thumb-contrast { background: #0a0a0a; color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Instrument Serif', serif; font-style: italic; font-size: 32px; }
+  .m-card .thumb-color-name { background: #6ba6ff; display: flex; align-items: center; justify-content: center; color: #fff; font-family: 'Instrument Serif', serif; font-style: italic; font-size: 22px; }
+  .m-card .thumb-type { background: #fafafa; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 2px; }
+  .m-card .thumb-type span { display: block; color: #0a0a0a; font-family: 'Instrument Serif', serif; line-height: 1; font-style: italic; }
+  .m-card .thumb-fonts { background: #fff; padding: 20px; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+  .m-card .thumb-favicon { background: #fafafa; display: flex; gap: 10px; align-items: center; justify-content: center; padding: 14%; }
+  .m-card .thumb-favicon span { background: conic-gradient(from 220deg, #ff7a59, #b48cff); border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,.1); }
+  .m-card .thumb-svg { background: #0a0a0a; color: #6be3c2; font-family: 'SF Mono', monospace; font-size: 9px; padding: 16px; line-height: 1.45; overflow: hidden; white-space: pre; }
+  .m-card .thumb-ascii { background: #0a0a0a; color: #f4f4f4; font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 7px; line-height: 1; padding: 14px; overflow: hidden; white-space: pre; letter-spacing: 0.04em; }
+  .m-card .thumb-halftone { background: #fff; background-image: radial-gradient(circle at 1px 1px, #FF1493 1.5px, transparent 0), radial-gradient(circle at 6px 4px, #00BFFF 1.5px, transparent 0), radial-gradient(circle at 11px 1px, #FFD700 1.5px, transparent 0); background-size: 15px 8px; }
+  .m-card .thumb-dither { background-image: repeating-conic-gradient(#0a0a0a 0% 25%, #fff 0% 50%); background-size: 8px 8px; }
+  .m-card .thumb-god-rays { background: radial-gradient(ellipse at 50% 0%, rgba(255,232,176,.9) 0%, transparent 60%), linear-gradient(180deg, #1a0a30, #3a1a60); position: relative; overflow: hidden; }
+  .m-card .thumb-god-rays::before { content: ''; position: absolute; inset: 0; background: linear-gradient(170deg, transparent 45%, rgba(255,232,176,.4) 48%, transparent 52%), linear-gradient(190deg, transparent 45%, rgba(255,232,176,.3) 48%, transparent 52%), linear-gradient(180deg, transparent 45%, rgba(255,232,176,.5) 48%, transparent 52%); }
+  .m-card .thumb-fractal-glass { background: linear-gradient(135deg, #5B2670, #FF6B9D 50%, #FFB347); filter: blur(0); position: relative; }
+  .m-card .thumb-fractal-glass::before { content: ''; position: absolute; inset: 0; background-image: repeating-radial-gradient(circle at 30% 40%, rgba(255,255,255,.15) 0 4px, transparent 4px 12px); }
+  .m-card .thumb-stars { background: linear-gradient(180deg, #0B0E2E, #3A2E4A); position: relative; overflow: hidden; }
+  .m-card .thumb-stars::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(1px 1px at 12px 8px, #fff 50%, transparent), radial-gradient(1px 1px at 33px 23px, #fff 50%, transparent), radial-gradient(2px 2px at 80px 15px, #fff 50%, transparent), radial-gradient(1px 1px at 120px 50px, #fff 50%, transparent), radial-gradient(1px 1px at 50px 60px, #fff 50%, transparent), radial-gradient(1px 1px at 170px 80px, #fff 50%, transparent), radial-gradient(2px 2px at 200px 30px, #fff 50%, transparent); }
+  .m-card .thumb-confetti { background: #fafafa; background-image: radial-gradient(circle at 15px 12px, #FF6B6B 3px, transparent 0), radial-gradient(circle at 35px 30px, #FFD56B 4px, transparent 0), radial-gradient(circle at 70px 18px, #6BA3FF 3px, transparent 0), radial-gradient(circle at 100px 40px, #A8E6CF 4px, transparent 0), radial-gradient(circle at 140px 20px, #B48CFF 3px, transparent 0); background-size: 180px 60px; }
+  .m-card .thumb-waves { background: linear-gradient(180deg, #fff 50%, #0EA5E9 50%); position: relative; overflow: hidden; }
+  .m-card .thumb-waves::before { content: ''; position: absolute; inset: 30% 0 0 0; background: linear-gradient(180deg, transparent 0%, #075985 100%); clip-path: path('M 0 40 Q 50 20, 100 40 T 200 40 L 200 100 L 0 100 Z'); }
+  .m-card .thumb-doodle { background: #fafafa; background-image: radial-gradient(circle at 10px 10px, #0a0a0a 2px, transparent 0), radial-gradient(circle at 30px 25px, transparent 5px, #0a0a0a 5px, #0a0a0a 5.5px, transparent 5.5px), radial-gradient(circle at 50px 8px, #0a0a0a 2px, transparent 0); background-size: 60px 40px; }
+  .m-card .thumb-charts { background: #fff; padding: 14px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; }
+  .m-card .thumb-charts span { display: block; width: 12%; background: linear-gradient(180deg, #667EEA, #764BA2); border-radius: 2px 2px 0 0; }
+  .m-card .thumb-blurry { background: radial-gradient(circle at 20% 30%, #667EEA 0%, transparent 50%), radial-gradient(circle at 75% 30%, #764BA2 0%, transparent 50%), radial-gradient(circle at 50% 80%, #F093FB 0%, transparent 50%), #4FACFE; filter: blur(0.5px); }
+  .m-card .thumb-stripe-notif { background: #FBF6E9; display: flex; align-items: center; justify-content: center; padding: 12%; font-family: 'Caveat', cursive; }
+  .m-card .thumb-stripe-notif::after { content: '$49'; font-size: 28px; font-weight: 700; color: #635bff; }
+  .m-card .thumb-mrr-chart { background: #FBF6E9; display: flex; align-items: end; justify-content: space-around; gap: 4px; padding: 14px; }
+  .m-card .thumb-mrr-chart span { display: block; width: 11%; background: #E94560; border: 1.5px solid #0a0a0a; border-radius: 2px; }
+  .m-card .thumb-hand-emoji { background: #FBF6E9; display: flex; align-items: center; justify-content: center; font-size: 60px; color: #FFD93D; }
+  .m-card .thumb-hand-emoji::after { content: '☺'; }
+  .m-card .thumb-hand-illus { background: linear-gradient(180deg, #FBF6E9 60%, #FFE8D0); position: relative; }
+  .m-card .thumb-hand-illus::before { content: '🚀'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 50px; transform: rotate(-15deg); }
+  .m-card .thumb-hand-arrows { background: #FBF6E9; }
+  .m-card .thumb-hand-arrows::before { content: '→'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 80px; color: #E94560; font-family: 'Caveat', cursive; font-weight: 700; transform: rotate(-15deg); }
+  .m-card .thumb-hand-quote { background: #FBF6E9; display: flex; align-items: center; justify-content: center; font-family: 'Caveat', cursive; font-style: italic; color: #0a0a0a; font-size: 22px; padding: 14px; text-align: center; line-height: 1.2; }
+  .m-card .thumb-hand-quote::before { content: '"Best tool ever" ★★★★★'; }
+  .m-card .thumb-avatar { background: #fafafa; display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .m-card .thumb-avatar span { display: inline-block; border-radius: 50%; background: radial-gradient(at 30% 30%, #ff7a59, transparent 50%), radial-gradient(at 70% 70%, #b48cff, transparent 50%), #ffd56b; color: #fff; font-weight: 700; font-family: Inter, sans-serif; display: flex; align-items: center; justify-content: center; }
+  .m-card .thumb-wordmark { background: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Instrument Serif', serif; font-style: italic; font-size: 28px; }
+  .m-card .thumb-wordmark::after { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ff7a59; margin-left: 4px; margin-bottom: -2px; }
+  .m-card .thumb-logomark { background: #fafafa; display: flex; align-items: center; justify-content: center; }
+  .m-card .thumb-logomark span { width: 60%; aspect-ratio: 1; border-radius: 26%; background: radial-gradient(at 20% 25%, #667EEA, transparent 50%), radial-gradient(at 75% 30%, #764BA2, transparent 50%), radial-gradient(at 40% 75%, #F093FB, transparent 50%), radial-gradient(at 80% 80%, #F5576C, transparent 50%), #4FACFE; color: #fff; font-weight: 800; font-size: 36px; display: flex; align-items: center; justify-content: center; font-family: Manrope, sans-serif; }
+  .m-card .thumb-brand { background: #fff; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; padding: 12px; }
+  .m-card .thumb-brand > div { border-radius: 4px; }
+  .m-card .thumb-brand .b-mark { background: conic-gradient(from 220deg, #ff7a59, #ffd56b, #6be3c2, #6ba6ff, #b48cff, #ff7a59); }
+  .m-card .thumb-brand .b-type { background: #fafafa; display: flex; align-items: center; justify-content: center; font-family: 'Instrument Serif', serif; font-style: italic; font-size: 18px; }
+  .m-card .thumb-brand .b-pal { background: linear-gradient(90deg, #667EEA 0 20%, #764BA2 20% 40%, #F093FB 40% 60%, #F5576C 60% 80%, #4FACFE 80%); }
+  .m-card .thumb-brand .b-words { background: #0a0a0a; color: #fff; display: flex; align-items: center; justify-content: center; font-family: Inter, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+</style>
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body class="landing">
+
+<div class="landing-wrap">
+  <nav class="landing-nav">
+    <a href="/" class="brand-link" style="text-decoration:none">
+      <span class="brand-mark"></span>
+      <div class="brand-stack">
+        <span class="brand-name">meshy.fun</span>
+        <a href="https://tinystartupstudio.com" target="_blank" rel="noopener" class="brand-by" onclick="event.stopPropagation()">by Tiny Startup Studio</a>
+      </div>
+    </a>
+    <div class="nav-end">
+      <a href="https://github.com/jaisalrathee/meshy" target="_blank" rel="noopener">GitHub</a>
+      <a href="#" class="powered-by">Tiny Startup Studio</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-eyebrow">by <a href="https://x.com/ratheejaisal" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Jaisal Rathee</a> &amp; <a href="https://tinystartupstudio.com" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Tiny Startup Studio</a></div>
+    <h1>Beautiful design <em>tools</em>,<br/>one tab away.</h1>
+    <p>A growing collection of focused, free design utilities. Mesh gradients, soft shadows, color palettes, OG images. No signup, no watermarks, instant.</p>
+    <div class="hero-cta">
+      <a href="/mesh/" class="btn primary">Try Mesh Gradient →</a>
+      <a href="#tools" class="btn">Browse all tools</a>
+    </div>
+  </section>
+
+  <div id="tools">
+    <div id="toolsByCategory"></div>
+  </div>
+
+  <footer class="landing-footer">
+    <div><a href="#" class="powered-by">Powered by Tiny Startup Studio</a></div>
+    <div>© <span id="year"></span> meshy.fun · Free forever</div>
+  </footer>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+
+const CATS = ['Brand', 'Generators', 'Hand Drawn', 'Image FX', 'Color', 'Typography', 'Asset'];
+const root = document.getElementById('toolsByCategory');
+
+CATS.forEach(cat => {
+  const tools = meshy.TOOLS.filter(t => t.cat === cat);
+  if (!tools.length) return;
+  const sec = document.createElement('div');
+  sec.innerHTML = `<h2 class="cat-title">${cat}</h2><div class="cards"></div>`;
+  root.appendChild(sec);
+  const grid = sec.querySelector('.cards');
+  tools.forEach(t => {
+    const a = document.createElement('a');
+    a.href = `/${t.slug}/`;
+    a.className = 'card m-card';
+    const blobSvg = t.slug === 'blob' ? `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path fill="#0a0a0a" d="M44.7,-58.7C58.3,-50.4,69.8,-37.1,75.8,-21.5C81.7,-5.9,82.2,12,75.4,26.5C68.5,41.1,54.4,52.4,38.8,60.2C23.2,68,6.2,72.3,-11.4,71.4C-29.1,70.5,-47.4,64.3,-58.8,52.1C-70.2,39.9,-74.6,21.6,-74.4,3.5C-74.1,-14.7,-69.1,-32.8,-58.4,-44.4C-47.6,-56.1,-31,-61.3,-15.3,-62.6C0.4,-63.9,15.2,-61.3,29.1,-66.8C43,-72.2,55.9,-85.7,44.7,-58.7Z" transform="translate(100 100)"/></svg>` : '';
+    const typeContent = t.slug === 'type-scale' ? '<span style="font-size:38px">Aa</span><span style="font-size:22px">Aa</span><span style="font-size:14px">Aa</span>' : '';
+    const fontsContent = t.slug === 'fonts' ? '<span style="font-family:Instrument Serif,serif;font-size:24px;font-style:italic">Headline</span><span style="font-family:Inter,sans-serif;font-size:11px;color:#525252">Body text in a different face</span>' : '';
+    const favContent = t.slug === 'favicon' ? '<span style="width:46px;height:46px"></span><span style="width:30px;height:30px"></span><span style="width:18px;height:18px"></span>' : '';
+    const svgContent = t.slug === 'svg' ? '&lt;svg viewBox="0 0 24 24"&gt;\n  &lt;path d="M3 12l5 5L21 4"/&gt;\n&lt;/svg&gt;' : '';
+    const colorNameContent = t.slug === 'color-name' ? 'Cornflower' : '';
+    const contrastContent = t.slug === 'contrast' ? 'Aa' : '';
+    const avatarContent = t.slug === 'avatar' ? '<span style="width:48px;height:48px;font-size:18px">M</span><span style="width:36px;height:36px;font-size:13px">JR</span><span style="width:24px;height:24px;font-size:9px">A</span>' : '';
+    const wordmarkContent = t.slug === 'wordmark' ? 'meshy' : '';
+    const logomarkContent = t.slug === 'logomark' ? '<span>M</span>' : '';
+    const brandContent = t.slug === 'brand' ? '<div class="b-mark"></div><div class="b-type">Aa</div><div class="b-words">MESHY</div><div class="b-pal"></div>' : '';
+    const asciiContent = t.slug === 'ascii' ? `   :-=+**+=-:   \n  -+*##%%##*+-  \n -*##%%@%%##*- \n -*##%@@%##*-  \n  -+*##%##*+-  \n   :-=++=-:   ` : '';
+    const chartsContent = t.slug === 'charts' ? '<span style="height:35%"></span><span style="height:60%"></span><span style="height:45%"></span><span style="height:80%"></span><span style="height:55%"></span><span style="height:90%"></span>' : '';
+    const mrrContent = t.slug === 'mrr-chart' ? '<span style="height:20%"></span><span style="height:30%"></span><span style="height:40%"></span><span style="height:50%"></span><span style="height:70%"></span><span style="height:95%"></span>' : '';
+    a.innerHTML = `
+      <div class="thumb thumb-${t.slug}">${blobSvg}${typeContent}${fontsContent}${favContent}${svgContent}${colorNameContent}${contrastContent}${avatarContent}${wordmarkContent}${logomarkContent}${brandContent}${asciiContent}${chartsContent}${mrrContent}</div>
+      <h3>${t.name} ${t.slug === 'mesh' ? '<span class="badge new">Featured</span>' : ''}</h3>
+      <p class="desc">${t.desc}</p>
+    `;
+    grid.appendChild(a);
+  });
+});
+</script>
+
+<!-- Cursor emoji burst -->
+<canvas id="cursorFx" style="position:fixed;inset:0;pointer-events:none;z-index:9999;width:100vw;height:100vh"></canvas>
+<script>
+(function() {
+  // Disable on touch devices (no cursor) and reduced-motion
+  if (window.matchMedia('(hover: none)').matches) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const c = document.getElementById('cursorFx');
+  const ctx = c.getContext('2d');
+  let dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  function resize() {
+    c.width = window.innerWidth * dpr;
+    c.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const EMOJIS = ['✨', '⭐', '🌟', '💫', '🌈', '⚡', '💖', '💎', '🎨', '🪄'];
+  // Bias the bag toward sparkles (the staple) and rainbows
+  const BAG = ['✨','✨','✨','✨','⭐','🌟','💫','💫','🌈','🌈','⚡','💖','💎','🎨','🪄'];
+
+  const particles = [];
+  let lastX = -1, lastY = -1, lastSpawn = 0;
+
+  window.addEventListener('mousemove', e => {
+    const x = e.clientX, y = e.clientY;
+    const now = performance.now();
+    // Spawn rate: ~25ms throttle, only if moved at least 4px
+    const dx = x - lastX, dy = y - lastY;
+    if (lastX < 0 || (now - lastSpawn > 25 && (dx*dx + dy*dy) > 16)) {
+      lastSpawn = now;
+      lastX = x; lastY = y;
+      const count = 1 + (Math.random() < 0.18 ? 1 : 0);
+      for (let i = 0; i < count; i++) {
+        particles.push(spawn(x, y));
+      }
+      if (particles.length > 80) particles.splice(0, particles.length - 80);
+    }
+  });
+
+  // Big burst on click
+  window.addEventListener('click', e => {
+    const x = e.clientX, y = e.clientY;
+    for (let i = 0; i < 14; i++) {
+      const angle = (i / 14) * Math.PI * 2 + Math.random() * 0.4;
+      const speed = 2 + Math.random() * 3;
+      const p = spawn(x, y);
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed - 1;
+      p.size = 22 + Math.random() * 14;
+      p.life = 1.2;
+      particles.push(p);
+    }
+    if (particles.length > 140) particles.splice(0, particles.length - 140);
+  });
+
+  function spawn(x, y) {
+    const emoji = BAG[Math.floor(Math.random() * BAG.length)];
+    return {
+      x, y,
+      vx: (Math.random() - 0.5) * 1.6,
+      vy: -0.8 - Math.random() * 1.4,
+      rot: (Math.random() - 0.5) * 0.6,
+      vr: (Math.random() - 0.5) * 0.08,
+      size: 18 + Math.random() * 10,
+      life: 1,            // remaining life 1 -> 0
+      decay: 0.012 + Math.random() * 0.008,
+      emoji,
+    };
+  }
+
+  function tick() {
+    ctx.clearRect(0, 0, c.width, c.height);
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.life -= p.decay;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.04;     // gravity (down)
+      p.vx *= 0.985;    // air friction
+      p.rot += p.vr;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+      // ease the scale: pop in then fade
+      const scale = p.life > 0.85 ? (1 - (1 - p.life)/0.15) * 0.6 + 0.6 : Math.min(1, p.life * 1.3);
+      const sz = p.size * scale;
+      ctx.font = sz + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(p.emoji, 0, 0);
+      ctx.restore();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Confetti · meshy.fun</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A handful of confetti.</div>
+      <button class="btn" id="newSeedBtn">New seed</button>
+      <button class="btn" id="svgBtn">Download SVG</button>
+      <button class="btn primary" id="pngBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 24px; background: #f4f4f4; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.15); border-radius: 8px; display: block; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const PALETTES = {
+  rainbow: ['#FF6B6B','#FFA07A','#FFD56B','#A8E6CF','#88D8C0','#6BA3FF','#B48CFF'],
+  pastel: ['#FFCCDE','#FFEDD8','#C5DEEA','#D4BBFC','#FDCBE7','#B5EAD7','#FFDAC1'],
+  vibrant: ['#FF006E','#8338EC','#3A86FF','#06FFA5','#FFBE0B','#FB5607'],
+  warm: ['#FF6B6B','#FFA07A','#FFD56B','#FF8E72','#FF5E78','#FF9466'],
+  cool: ['#667EEA','#764BA2','#A1C4FD','#4FACFE','#5EA9DD','#B0E0E6'],
+  mono: ['#0a0a0a','#1a1a1a','#3a3a3a','#5a5a5a','#7a7a7a'],
+};
+const SHAPES = ['circle','square','triangle','strip','star','mixed'];
+
+const state = { palette: 'rainbow', shape: 'mixed', count: 80, sizeMin: 6, sizeMax: 20, density: 'spread', bg: '#fafafa', transparent: false, seed: 1, w: 1200, h: 800 };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Confetti')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Palette</div>
+      <div class="chips" id="palChips">
+        ${Object.keys(PALETTES).map(k => `<div class="chip ${k==='rainbow'?'active':''}" data-p="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Shape</div>
+      <div class="chips" id="shapeChips">
+        ${SHAPES.map(s => `<div class="chip ${s==='mixed'?'active':''}" data-s="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Density</div>
+      <div class="chips" id="densityChips">
+        <div class="chip active" data-d="spread">Spread</div>
+        <div class="chip" data-d="top">Top burst</div>
+        <div class="chip" data-d="center">Center burst</div>
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Controls</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Count</label><span class="val" id="countVal">80</span></div>
+      <input type="range" id="count" min="20" max="300" value="80">
+      <div class="row" style="margin-top:14px"><label>Min size</label><span class="val" id="sizeMinVal">6px</span></div>
+      <input type="range" id="sizeMin" min="2" max="30" value="6">
+      <div class="row" style="margin-top:14px"><label>Max size</label><span class="val" id="sizeMaxVal">20px</span></div>
+      <input type="range" id="sizeMax" min="6" max="60" value="20">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Background</div>
+      <input type="color" id="bg" value="#fafafa">
+      <div class="chips" style="margin-top:10px"><div class="chip" id="transparentChip">Transparent</div></div>
+    </div>
+  </div>
+`;
+
+function rand(seed) { return () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }; }
+
+function makeShape(type, x, y, size, rot, color, r) {
+  switch (type) {
+    case 'circle': return `<circle cx="${x}" cy="${y}" r="${size/2}" fill="${color}"/>`;
+    case 'square': return `<rect x="${x-size/2}" y="${y-size/2}" width="${size}" height="${size}" fill="${color}" transform="rotate(${rot} ${x} ${y})"/>`;
+    case 'triangle': return `<polygon points="${x},${y-size/2} ${x-size/2},${y+size/2} ${x+size/2},${y+size/2}" fill="${color}" transform="rotate(${rot} ${x} ${y})"/>`;
+    case 'strip': return `<rect x="${x-size/2}" y="${y-size/6}" width="${size}" height="${size/3}" rx="${size/6}" fill="${color}" transform="rotate(${rot} ${x} ${y})"/>`;
+    case 'star': {
+      let pts = '';
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2 - Math.PI/2;
+        const rr = i % 2 === 0 ? size/2 : size/5;
+        pts += `${(x + Math.cos(a)*rr).toFixed(1)},${(y + Math.sin(a)*rr).toFixed(1)} `;
+      }
+      return `<polygon points="${pts.trim()}" fill="${color}" transform="rotate(${rot} ${x} ${y})"/>`;
+    }
+  }
+}
+
+function buildSvg() {
+  const W = state.w, H = state.h;
+  const colors = PALETTES[state.palette];
+  const r = rand(state.seed);
+  let shapes = '';
+  const types = state.shape === 'mixed' ? ['circle','square','triangle','strip','star'] : [state.shape];
+  for (let i = 0; i < state.count; i++) {
+    let x, y;
+    if (state.density === 'top') {
+      x = r() * W;
+      y = Math.pow(r(), 2) * H; // weighted toward top
+    } else if (state.density === 'center') {
+      const angle = r() * Math.PI * 2;
+      const dist = Math.pow(r(), 0.5) * Math.min(W,H) * 0.45;
+      x = W/2 + Math.cos(angle) * dist;
+      y = H/2 + Math.sin(angle) * dist;
+    } else {
+      x = r() * W; y = r() * H;
+    }
+    const size = state.sizeMin + r() * (state.sizeMax - state.sizeMin);
+    const rot = r() * 360;
+    const color = colors[Math.floor(r() * colors.length)];
+    const type = types[Math.floor(r() * types.length)];
+    shapes += makeShape(type, x.toFixed(1), y.toFixed(1), size.toFixed(1), rot.toFixed(0), color, r);
+  }
+  const bg = state.transparent ? '' : `<rect width="${W}" height="${H}" fill="${state.bg}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${bg}${shapes}</svg>`;
+}
+
+function render() {
+  document.getElementById('outSvg').outerHTML = buildSvg().replace('<svg ', '<svg id="outSvg" ');
+}
+
+function bindRange(id,key,suffix='') {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = +e.target.value;
+    document.getElementById(id+'Val').textContent = state[key]+suffix;
+    render();
+  });
+}
+bindRange('count','count'); bindRange('sizeMin','sizeMin','px'); bindRange('sizeMax','sizeMax','px');
+document.getElementById('bg').addEventListener('input', e => { state.bg = e.target.value; render(); });
+document.getElementById('transparentChip').addEventListener('click', e => { state.transparent = !state.transparent; e.target.classList.toggle('active', state.transparent); render(); });
+['palChips','shapeChips','densityChips'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    document.querySelectorAll(`#${id} .chip`).forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    const k = id === 'palChips' ? 'palette' : id === 'shapeChips' ? 'shape' : 'density';
+    const d = id === 'palChips' ? 'p' : id === 'shapeChips' ? 's' : 'd';
+    state[k] = c.dataset[d]; render();
+  });
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*10000); render(); });
+document.getElementById('svgBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const link = document.createElement('a'); link.download = 'confetti.svg'; link.href = URL.createObjectURL(blob); link.click();
+});
+document.getElementById('pngBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = state.w*2; c.height = state.h*2;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.download = 'confetti.png'; link.href = c.toDataURL('image/png'); link.click();
+  };
+  img.src = url;
+});
+
+render();
+</script>
+</body>
+</html>

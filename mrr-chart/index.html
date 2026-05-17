@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MRR Chart · meshy.fun</title>
+<meta name="description" content="Hand-drawn MRR / revenue chart. Editable monthly data points and callouts." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Caveat:wght@400;500;600;700&family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">Sketchy growth, framed nicely.</div>
+      <button class="btn" id="newSeedBtn">New variation</button>
+      <button class="btn" id="svgBtn">Download SVG</button>
+      <button class="btn primary" id="pngBtn">Download PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 30px; background: #fafafa; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.08); border-radius: 8px; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const state = {
+  title: 'MRR',
+  data: '0,200\n1,420\n2,680\n3,950\n4,1450\n5,1900\n6,2400\n7,3100\n8,4200\n9,5800\n10,7800\n11,12000',
+  type: 'bar',
+  callout: '$12K MRR',
+  callout2: '6x in 12 months',
+  paper: 'cream',
+  accent: '#E94560',
+  seed: 9,
+  w: 1100, h: 700,
+};
+
+const PAPER_COLORS = {
+  white: { bg: '#ffffff', ink: '#0a0a0a', muted: '#525252', grid: 'rgba(0,0,0,.08)' },
+  cream: { bg: '#FBF6E9', ink: '#2A1F10', muted: '#6B5A3F', grid: 'rgba(42,31,16,.1)' },
+  graph: { bg: '#F0E8D8', ink: '#2A1F10', muted: '#6B5A3F', grid: 'rgba(70,140,200,.18)' },
+  dark:  { bg: '#1B1B1F', ink: '#F5F5F5', muted: '#A0A0A0', grid: 'rgba(255,255,255,.1)' },
+};
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('MRR')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Chart type</div>
+      <div class="chips" id="typeChips">
+        <div class="chip active" data-t="bar">Bar</div>
+        <div class="chip" data-t="line">Line</div>
+        <div class="chip" data-t="area">Area</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Paper</div>
+      <div class="chips" id="paperChips">
+        <div class="chip" data-p="white">White</div>
+        <div class="chip active" data-p="cream">Cream</div>
+        <div class="chip" data-p="graph">Graph</div>
+        <div class="chip" data-p="dark">Dark</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Accent</div>
+      <input type="color" id="accent" value="#E94560">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Quick presets</div>
+      <button class="btn full sm" id="presetGrow" style="margin-bottom:6px">Hockey stick</button>
+      <button class="btn full sm" id="presetFlat" style="margin-bottom:6px">Slow burn</button>
+      <button class="btn full sm" id="presetDip">Recovery</button>
+    </div>
+  </div>
+  ${meshy.hintHtml('Click <strong>New variation</strong> to reshuffle wobble')}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Content</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Title</label></div>
+      <input type="text" id="title" value="${state.title}">
+      <div class="row" style="margin-top:12px"><label>Big callout</label></div>
+      <input type="text" id="callout" value="${state.callout}">
+      <div class="row" style="margin-top:12px"><label>Subtext</label></div>
+      <input type="text" id="callout2" value="${state.callout2}">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Data (month index, value)</div>
+      <textarea id="data" rows="13" style="font-family:'SF Mono',monospace;font-size:11px">${state.data}</textarea>
+      <div style="font-size:11px;color:var(--ink-3);margin-top:6px">12 rows = months. Numbers are editable in real time.</div>
+    </div>
+  </div>
+`;
+
+function parseData(s) {
+  return s.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    const parts = l.split(/[,\t]/);
+    return { idx: parseInt(parts[0]) || 0, value: parseFloat(parts[1]) || 0 };
+  });
+}
+
+function fmtMoney(v) {
+  if (v >= 1000) return '$' + (v/1000).toFixed(v >= 10000 ? 0 : 1) + 'K';
+  return '$' + Math.round(v);
+}
+
+function buildSvg() {
+  const W = state.w, H = state.h;
+  const r = meshy.seededRand(state.seed);
+  const p = PAPER_COLORS[state.paper];
+  const accent = state.accent;
+  const data = parseData(state.data);
+  const max = Math.max(...data.map(d => d.value), 100) * 1.1;
+
+  let svg = `<rect width="${W}" height="${H}" fill="${p.bg}"/>`;
+
+  // grid (faint hand-drawn lines, like graph paper) — for 'graph' paper
+  if (state.paper === 'graph') {
+    for (let i = 0; i < W; i += 25) svg += `<line x1="${i}" y1="0" x2="${i}" y2="${H}" stroke="${p.grid}" stroke-width="1"/>`;
+    for (let j = 0; j < H; j += 25) svg += `<line x1="0" y1="${j}" x2="${W}" y2="${j}" stroke="${p.grid}" stroke-width="1"/>`;
+  }
+
+  // Title (top)
+  svg += `<text x="80" y="80" font-family="'Caveat', cursive" font-size="56" font-weight="700" fill="${p.ink}">${escape(state.title)}</text>`;
+
+  // Big callout (top-right)
+  if (state.callout) {
+    svg += `<text x="${W - 80}" y="80" text-anchor="end" font-family="'Caveat', cursive" font-size="64" font-weight="700" fill="${accent}">${escape(state.callout)}</text>`;
+    if (state.callout2) {
+      svg += `<text x="${W - 80}" y="115" text-anchor="end" font-family="'Kalam', cursive" font-size="22" fill="${p.muted}">${escape(state.callout2)}</text>`;
+    }
+    // wobbly underline
+    const underW = Math.min(280, state.callout.length * 32);
+    svg += `<path d="${meshy.wobblyLine(W - 80 - underW, 92, W - 80, 92, 2.5, r)}" stroke="${accent}" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.6"/>`;
+  }
+
+  // Chart area
+  const padL = 100, padR = 80, padT = 170, padB = 80;
+  const chartW = W - padL - padR, chartH = H - padT - padB;
+
+  // axes (wobbly)
+  svg += `<path d="${meshy.wobblyLine(padL, padT, padL, padT + chartH, 1.2, r)}" stroke="${p.ink}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+  svg += `<path d="${meshy.wobblyLine(padL, padT + chartH, padL + chartW, padT + chartH, 1.2, r)}" stroke="${p.ink}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+
+  // Y axis tick labels
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + chartH - (i/4)*chartH;
+    const val = (max * i/4);
+    svg += `<text x="${padL - 14}" y="${y + 6}" text-anchor="end" font-family="'Kalam', cursive" font-size="16" fill="${p.muted}">${fmtMoney(val)}</text>`;
+    // tick mark
+    svg += `<path d="${meshy.wobblyLine(padL - 6, y, padL, y, 0.6, r)}" stroke="${p.ink}" stroke-width="1.5" fill="none"/>`;
+  }
+
+  if (state.type === 'bar') {
+    const barGap = chartW / data.length;
+    const barW = barGap * 0.65;
+    data.forEach((d, i) => {
+      const h = (d.value / max) * chartH;
+      const x = padL + i*barGap + (barGap - barW)/2;
+      const y = padT + chartH - h;
+      // Wobbly rect filled with hatching, outlined
+      svg += `<path d="${meshy.wobblyRect(x, y, barW, h, 1.2, r)}" fill="${accent}" stroke="${p.ink}" stroke-width="1.8" stroke-linejoin="round" opacity="0.85"/>`;
+      // X label
+      svg += `<text x="${x + barW/2}" y="${padT + chartH + 24}" text-anchor="middle" font-family="'Kalam', cursive" font-size="14" fill="${p.muted}">${MONTHS[d.idx % 12]}</text>`;
+    });
+  } else if (state.type === 'line' || state.type === 'area') {
+    const stepX = chartW / (data.length - 1);
+    const points = data.map((d, i) => [padL + i*stepX, padT + chartH - (d.value/max)*chartH]);
+
+    if (state.type === 'area') {
+      let area = `M ${points[0][0]} ${padT + chartH}`;
+      points.forEach(p => { area += ` L ${p[0].toFixed(1)} ${p[1].toFixed(1)}`; });
+      area += ` L ${points[points.length-1][0]} ${padT + chartH} Z`;
+      svg += `<path d="${area}" fill="${accent}" opacity="0.25"/>`;
+      // hatch fill below the line
+      svg += `<g opacity="0.18"><path d="${meshy.hatchFill(padL, padT + chartH*0.3, chartW, chartH*0.7, 10, 45, 1, r)}" stroke="${accent}" stroke-width="1.2" fill="none"/></g>`;
+    }
+    // Wobbly line through the points
+    let lineD = '';
+    for (let i = 0; i < points.length - 1; i++) {
+      lineD += meshy.wobblyLine(points[i][0], points[i][1], points[i+1][0], points[i+1][1], 1.4, r) + ' ';
+    }
+    svg += `<path d="${lineD}" stroke="${accent}" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+    // Data points
+    points.forEach((pt, i) => {
+      svg += `<path d="${meshy.wobblyCircle(pt[0], pt[1], 5, 0.8, r)}" fill="${p.bg}" stroke="${accent}" stroke-width="2.2"/>`;
+      svg += `<text x="${pt[0]}" y="${padT + chartH + 24}" text-anchor="middle" font-family="'Kalam', cursive" font-size="14" fill="${p.muted}">${MONTHS[data[i].idx % 12]}</text>`;
+    });
+    // Arrow at the last point with growth annotation
+    if (state.type === 'line' || state.type === 'area') {
+      const last = points[points.length - 1];
+      const arrowEnd = [last[0] + 40, last[1] - 30];
+      svg += `<path d="${meshy.wobblyLine(arrowEnd[0], arrowEnd[1], last[0] + 8, last[1] - 6, 1, r)}" stroke="${p.ink}" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+      // arrow head
+      const ang = Math.atan2(arrowEnd[1] - last[1], arrowEnd[0] - last[0]) + Math.PI;
+      svg += `<path d="M ${last[0]+8} ${last[1]-6} L ${last[0]+8+Math.cos(ang-0.3)*12} ${last[1]-6+Math.sin(ang-0.3)*12} M ${last[0]+8} ${last[1]-6} L ${last[0]+8+Math.cos(ang+0.3)*12} ${last[1]-6+Math.sin(ang+0.3)*12}" stroke="${p.ink}" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+    }
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${svg}</svg>`;
+}
+
+function escape(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render() {
+  document.getElementById('outSvg').outerHTML = buildSvg().replace('<svg ', '<svg id="outSvg" ');
+}
+
+['title','callout','callout2','data'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => { state[id] = e.target.value; render(); });
+});
+document.getElementById('accent').addEventListener('input', e => { state.accent = e.target.value; render(); });
+['typeChips','paperChips'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    document.querySelectorAll(`#${id} .chip`).forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    state[id === 'typeChips' ? 'type' : 'paper'] = c.dataset[id === 'typeChips' ? 't' : 'p'];
+    render();
+  });
+});
+document.getElementById('newSeedBtn').addEventListener('click', () => { state.seed = Math.floor(Math.random()*1000); render(); });
+
+const PRESETS = {
+  grow: ['0,200','1,420','2,680','3,950','4,1450','5,1900','6,2400','7,3100','8,4200','9,5800','10,7800','11,12000'],
+  flat: ['0,1200','1,1180','2,1240','3,1300','4,1320','5,1380','6,1410','7,1450','8,1480','9,1520','10,1560','11,1600'],
+  dip: ['0,3200','1,3400','2,2800','3,2100','4,1600','5,1900','6,2400','7,3100','8,4000','9,5200','10,6800','11,8500'],
+};
+document.getElementById('presetGrow').addEventListener('click', () => { state.data = PRESETS.grow.join('\n'); document.getElementById('data').value = state.data; render(); });
+document.getElementById('presetFlat').addEventListener('click', () => { state.data = PRESETS.flat.join('\n'); document.getElementById('data').value = state.data; render(); });
+document.getElementById('presetDip').addEventListener('click', () => { state.data = PRESETS.dip.join('\n'); document.getElementById('data').value = state.data; render(); });
+
+document.getElementById('svgBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const link = document.createElement('a'); link.download = 'mrr-chart.svg'; link.href = URL.createObjectURL(blob); link.click();
+});
+document.getElementById('pngBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = state.w*2; c.height = state.h*2;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.download = 'mrr-chart.png'; link.href = c.toDataURL('image/png'); link.click();
+  };
+  img.src = url;
+});
+
+render();
+</script>
+</body>
+</html>

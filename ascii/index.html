@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ASCII Magic · meshy.fun</title>
+<meta name="description" content="Turn any image into a beautiful ASCII-overlay artwork. Drop image, pick characters, export PNG." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">An image, as letters.</div>
+      <button class="btn" id="uploadBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload
+      </button>
+      <select id="exportRes" class="btn" style="height:36px;padding:0 10px">
+        <option value="1">1× (canvas)</option>
+        <option value="2" selected>2× (HD)</option>
+        <option value="4">4× (Print)</option>
+      </select>
+      <button class="btn primary" id="exportBtn">Export PNG</button>
+    </div>
+    <div class="canvas" id="canvasWrap">
+      <canvas id="outCanvas"></canvas>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" style="display:none">
+
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 24px; background: #0a0a0a; }
+  .canvas.light { background: #fafaf9; }
+  #outCanvas { max-width: 100%; max-height: 100%; display: block; box-shadow: 0 20px 60px rgba(0,0,0,.4); border-radius: 8px; }
+
+  /* Background examples grid */
+  .bg-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .bg-tile {
+    aspect-ratio: 1.4 / 1;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    overflow: hidden;
+    transition: transform .15s ease;
+    position: relative;
+  }
+  .bg-tile:hover { transform: translateY(-2px); }
+  .bg-tile.active { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  .bg-tile canvas { width: 100%; height: 100%; display: block; }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+// ---------- Stock scenes (procedural canvas drawings) ----------
+const SCENES = {
+  aurora(ctx, W, H) {
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#0B0E2E'); sky.addColorStop(0.5, '#1B3550'); sky.addColorStop(1, '#3A2E4A');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    // aurora streaks
+    for (let i = 0; i < 4; i++) {
+      const grad = ctx.createLinearGradient(W*0.3 + i*60, 0, W*0.7 + i*60, H*0.7);
+      grad.addColorStop(0, 'rgba(100,220,180,0)');
+      grad.addColorStop(0.4, 'rgba(120,240,200,0.85)');
+      grad.addColorStop(0.7, 'rgba(180,140,255,0.7)');
+      grad.addColorStop(1, 'rgba(100,80,180,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(W*0.2 + i*120, 0);
+      for (let y = 0; y <= H*0.75; y += 16) {
+        ctx.lineTo(W*0.3 + i*100 + Math.sin(y/40 + i) * 90, y);
+      }
+      for (let y = H*0.75; y >= 0; y -= 16) {
+        ctx.lineTo(W*0.3 + i*100 + Math.sin(y/40 + i) * 90 + 60, y);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+    // mountains
+    ctx.fillStyle = '#080814';
+    ctx.beginPath(); ctx.moveTo(0, H);
+    ctx.lineTo(0, H*0.55);
+    const peaks = [0.12, 0.05, 0.25, 0.15, 0.4, 0.2, 0.55, 0.32, 0.7, 0.18, 0.85, 0.4, 1, 0.25];
+    for (let i = 0; i < peaks.length; i += 2) ctx.lineTo(W*peaks[i], H*(0.55 + peaks[i+1]));
+    ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    // stars
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 50; i++) {
+      const x = Math.random() * W, y = Math.random() * H * 0.5;
+      const r = Math.random() * 1.5 + 0.3;
+      ctx.globalAlpha = 0.4 + Math.random() * 0.6;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  },
+  sunset(ctx, W, H) {
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#FF6E7F'); sky.addColorStop(0.4, '#FFB347'); sky.addColorStop(0.7, '#FFDC73'); sky.addColorStop(1, '#7B4B36');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    // sun
+    const sun = ctx.createRadialGradient(W*0.5, H*0.55, 10, W*0.5, H*0.55, W*0.25);
+    sun.addColorStop(0, 'rgba(255,255,220,1)'); sun.addColorStop(0.5, 'rgba(255,180,100,0.4)'); sun.addColorStop(1, 'rgba(255,100,50,0)');
+    ctx.fillStyle = sun; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#FFEEC2'; ctx.beginPath(); ctx.arc(W*0.5, H*0.55, W*0.08, 0, Math.PI*2); ctx.fill();
+    // horizon mountains
+    ctx.fillStyle = '#2A1818';
+    ctx.beginPath(); ctx.moveTo(0, H);
+    ctx.lineTo(0, H*0.7); ctx.lineTo(W*0.2, H*0.65); ctx.lineTo(W*0.35, H*0.72); ctx.lineTo(W*0.5, H*0.62);
+    ctx.lineTo(W*0.65, H*0.7); ctx.lineTo(W*0.85, H*0.66); ctx.lineTo(W, H*0.72); ctx.lineTo(W, H);
+    ctx.closePath(); ctx.fill();
+    // cloud streaks
+    ctx.fillStyle = 'rgba(255,80,80,0.4)';
+    for (let i = 0; i < 6; i++) {
+      const y = H*0.15 + i*30;
+      ctx.fillRect(W*0.1, y, W*0.8, 6);
+    }
+  },
+  galaxy(ctx, W, H) {
+    ctx.fillStyle = '#040415'; ctx.fillRect(0, 0, W, H);
+    // central bulge
+    const core = ctx.createRadialGradient(W*0.5, H*0.5, 0, W*0.5, H*0.5, W*0.45);
+    core.addColorStop(0, 'rgba(255,255,240,1)');
+    core.addColorStop(0.1, 'rgba(255,220,200,0.9)');
+    core.addColorStop(0.3, 'rgba(255,140,200,0.5)');
+    core.addColorStop(0.6, 'rgba(120,80,200,0.3)');
+    core.addColorStop(1, 'rgba(20,20,80,0)');
+    ctx.fillStyle = core; ctx.fillRect(0, 0, W, H);
+    // spiral arms
+    ctx.save();
+    ctx.translate(W*0.5, H*0.5);
+    for (let i = 0; i < 600; i++) {
+      const angle = (i / 600) * Math.PI * 6 + Math.random()*0.3;
+      const radius = (i / 600) * Math.min(W, H) * 0.45;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius * 0.5;
+      const c = i < 200 ? `rgba(255,${200-i/4},${150-i/5},${0.7 - i/1000})` : `rgba(${180+Math.random()*60},${120+Math.random()*100},${220},${0.6 - i/1200})`;
+      ctx.fillStyle = c;
+      ctx.beginPath(); ctx.arc(x, y, Math.random()*1.5+0.5, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+    // stars
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 100; i++) {
+      ctx.globalAlpha = 0.3 + Math.random()*0.7;
+      ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*1.2+0.3, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  },
+  bokeh(ctx, W, H) {
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#2A1B5E'); bg.addColorStop(0.5, '#5B2670'); bg.addColorStop(1, '#FF6B9D');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    const colors = ['#FFD93D','#FF6B9D','#A8E6CF','#88D8C0','#FFAEC0','#FFE5D9','#6BA3FF','#B48CFF'];
+    for (let i = 0; i < 40; i++) {
+      const x = Math.random()*W, y = Math.random()*H;
+      const r = Math.random()*60 + 20;
+      const c = colors[Math.floor(Math.random()*colors.length)];
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, c + 'cc'); g.addColorStop(0.6, c + '44'); g.addColorStop(1, c + '00');
+      ctx.fillStyle = g; ctx.fillRect(x-r, y-r, r*2, r*2);
+    }
+  },
+  eclipse(ctx, W, H) {
+    const sky = ctx.createRadialGradient(W*0.5, H*0.45, 0, W*0.5, H*0.45, W*0.7);
+    sky.addColorStop(0, '#3A1A4A'); sky.addColorStop(0.6, '#0A0A1E'); sky.addColorStop(1, '#000');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    // outer corona
+    const corona = ctx.createRadialGradient(W*0.5, H*0.45, W*0.1, W*0.5, H*0.45, W*0.3);
+    corona.addColorStop(0, 'rgba(255,200,150,0.9)'); corona.addColorStop(0.5, 'rgba(255,150,100,0.3)'); corona.addColorStop(1, 'rgba(255,100,50,0)');
+    ctx.fillStyle = corona; ctx.fillRect(0, 0, W, H);
+    // black disk
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(W*0.5, H*0.45, W*0.1, 0, Math.PI*2); ctx.fill();
+    // rim flare
+    ctx.strokeStyle = 'rgba(255,240,200,0.9)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(W*0.5, H*0.45, W*0.11, 0, Math.PI*2); ctx.stroke();
+    // stars
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 60; i++) {
+      ctx.globalAlpha = 0.3 + Math.random()*0.5;
+      ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*1.2, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  },
+  ocean(ctx, W, H) {
+    const sky = ctx.createLinearGradient(0, 0, 0, H*0.5);
+    sky.addColorStop(0, '#FFB180'); sky.addColorStop(1, '#5B9BD5');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H*0.5);
+    // sun reflection horizon
+    ctx.fillStyle = '#FFE4B0'; ctx.beginPath(); ctx.arc(W*0.5, H*0.5, W*0.06, 0, Math.PI*2); ctx.fill();
+    // ocean
+    const sea = ctx.createLinearGradient(0, H*0.5, 0, H);
+    sea.addColorStop(0, '#1B3A5E'); sea.addColorStop(0.3, '#143C5E'); sea.addColorStop(1, '#0A1F35');
+    ctx.fillStyle = sea; ctx.fillRect(0, H*0.5, W, H*0.5);
+    // wave streaks
+    ctx.strokeStyle = 'rgba(255,200,150,0.4)'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 30; i++) {
+      const y = H*0.5 + i*8;
+      ctx.beginPath();
+      for (let x = 0; x < W; x += 8) {
+        ctx.lineTo(x, y + Math.sin(x/(20 + i) + i) * 2);
+      }
+      ctx.stroke();
+    }
+    // sun glow on water
+    const glow = ctx.createLinearGradient(W*0.5, H*0.5, W*0.5, H*0.85);
+    glow.addColorStop(0, 'rgba(255,200,150,0.7)'); glow.addColorStop(1, 'rgba(255,200,150,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.moveTo(W*0.4, H*0.5); ctx.lineTo(W*0.6, H*0.5); ctx.lineTo(W*0.7, H); ctx.lineTo(W*0.3, H); ctx.fill();
+  },
+  forest(ctx, W, H) {
+    const sky = ctx.createLinearGradient(0, 0, 0, H*0.6);
+    sky.addColorStop(0, '#FFE4B0'); sky.addColorStop(0.5, '#FFB07A'); sky.addColorStop(1, '#A0507A');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H*0.6);
+    ctx.fillStyle = '#3A2A4A'; ctx.fillRect(0, H*0.6, W, H*0.4);
+    // distant trees
+    ctx.fillStyle = '#1A1426';
+    for (let layer = 0; layer < 3; layer++) {
+      const baseY = H*(0.55 + layer*0.08);
+      const alpha = 1 - layer*0.25;
+      ctx.fillStyle = `rgba(${10+layer*30},${10+layer*20},${30+layer*30},${alpha})`;
+      for (let x = -30; x < W + 30; x += 18 + Math.random()*10) {
+        const h = H*(0.15 + Math.random()*0.15);
+        ctx.beginPath();
+        ctx.moveTo(x, baseY);
+        ctx.lineTo(x + 10, baseY - h);
+        ctx.lineTo(x + 20, baseY);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+  },
+  bloom(ctx, W, H) {
+    const bg = ctx.createRadialGradient(W*0.5, H*0.5, 0, W*0.5, H*0.5, W*0.7);
+    bg.addColorStop(0, '#FFE4E9'); bg.addColorStop(1, '#5A2B3F');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // rose petals as overlapping ellipses
+    const cx = W*0.5, cy = H*0.5;
+    const petalColors = ['#5A1A2A','#7A2A3A','#A04050','#C45A6A','#E07B8A','#F09BAA','#FBC2CA'];
+    for (let layer = 0; layer < petalColors.length; layer++) {
+      const r = (petalColors.length - layer) * Math.min(W,H) * 0.06;
+      const petals = 6 + layer;
+      for (let i = 0; i < petals; i++) {
+        const angle = (i/petals)*Math.PI*2 + layer*0.2;
+        const x = cx + Math.cos(angle) * r * 0.5;
+        const y = cy + Math.sin(angle) * r * 0.5;
+        ctx.fillStyle = petalColors[layer];
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r*0.7, angle, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+    ctx.fillStyle = '#3A0A1A';
+    ctx.beginPath(); ctx.arc(cx, cy, W*0.04, 0, Math.PI*2); ctx.fill();
+  },
+  mountain(ctx, W, H) {
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#1A2A4A'); sky.addColorStop(0.4, '#3A4A6A'); sky.addColorStop(0.7, '#9A5A6A'); sky.addColorStop(1, '#FFB07A');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    // sun
+    ctx.fillStyle = '#FFE4B0'; ctx.beginPath(); ctx.arc(W*0.7, H*0.55, W*0.05, 0, Math.PI*2); ctx.fill();
+    // mountains
+    const layers = [
+      { color: 'rgba(40,30,60,0.6)', y: 0.6, peaks: [0,0.65, 0.15,0.5, 0.3,0.65, 0.5,0.45, 0.7,0.6, 0.85,0.5, 1,0.55] },
+      { color: 'rgba(20,15,40,0.85)', y: 0.7, peaks: [0,0.75, 0.12,0.55, 0.28,0.7, 0.45,0.55, 0.65,0.65, 0.82,0.55, 1,0.7] },
+      { color: '#0A0814', y: 0.85, peaks: [0,0.85, 0.18,0.7, 0.4,0.8, 0.6,0.72, 0.8,0.82, 1,0.78] },
+    ];
+    for (const layer of layers) {
+      ctx.fillStyle = layer.color;
+      ctx.beginPath(); ctx.moveTo(0, H);
+      for (let i = 0; i < layer.peaks.length; i += 2) {
+        ctx.lineTo(W*layer.peaks[i], H*layer.peaks[i+1]);
+      }
+      ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    }
+  },
+  city(ctx, W, H) {
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#0A0820'); sky.addColorStop(0.5, '#2A0F3A'); sky.addColorStop(0.8, '#FF4060'); sky.addColorStop(1, '#FFB060');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    // sun
+    ctx.fillStyle = '#FFE0A0'; ctx.beginPath(); ctx.arc(W*0.5, H*0.78, W*0.06, 0, Math.PI*2); ctx.fill();
+    // building silhouettes
+    ctx.fillStyle = '#0A0612';
+    let x = 0;
+    while (x < W) {
+      const w = 30 + Math.random()*60;
+      const h = H*(0.2 + Math.random()*0.35);
+      ctx.fillRect(x, H - h, w, h);
+      // windows
+      ctx.fillStyle = 'rgba(255,220,150,0.6)';
+      for (let wx = x + 6; wx < x + w - 6; wx += 8) {
+        for (let wy = H - h + 10; wy < H - 20; wy += 12) {
+          if (Math.random() < 0.4) ctx.fillRect(wx, wy, 3, 5);
+        }
+      }
+      ctx.fillStyle = '#0A0612';
+      x += w + 2;
+    }
+  },
+  portrait(ctx, W, H) {
+    const bg = ctx.createRadialGradient(W*0.5, H*0.4, 0, W*0.5, H*0.5, W*0.7);
+    bg.addColorStop(0, '#FF8060'); bg.addColorStop(0.5, '#8B3050'); bg.addColorStop(1, '#1A0A20');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // face silhouette (oval profile)
+    const cx = W*0.5, cy = H*0.45;
+    const grad = ctx.createRadialGradient(cx - W*0.05, cy - H*0.08, 0, cx, cy, W*0.22);
+    grad.addColorStop(0, '#FFD8B0'); grad.addColorStop(0.7, '#C0805A'); grad.addColorStop(1, '#3A1810');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, W*0.16, H*0.22, 0, 0, Math.PI*2); ctx.fill();
+    // hair
+    ctx.fillStyle = '#1A0A14';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - H*0.05, W*0.18, H*0.13, 0, Math.PI, Math.PI*2); ctx.fill();
+    // neck/shoulders
+    ctx.fillStyle = '#3A1A20';
+    ctx.beginPath();
+    ctx.moveTo(cx - W*0.08, cy + H*0.18);
+    ctx.lineTo(cx + W*0.08, cy + H*0.18);
+    ctx.lineTo(cx + W*0.35, H);
+    ctx.lineTo(cx - W*0.35, H);
+    ctx.closePath(); ctx.fill();
+  },
+  wave(ctx, W, H) {
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#1E3A5F'); bg.addColorStop(1, '#0A1A2F');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // crest
+    const crest = ctx.createLinearGradient(0, H*0.3, 0, H*0.7);
+    crest.addColorStop(0, '#5BA8E0'); crest.addColorStop(0.5, '#2A6BB8'); crest.addColorStop(1, '#0A2A50');
+    ctx.fillStyle = crest;
+    ctx.beginPath(); ctx.moveTo(0, H*0.7);
+    for (let x = 0; x <= W; x += 8) {
+      const y = H*0.5 + Math.sin(x/40) * 50 + Math.sin(x/120) * 80;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+    // foam
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += 8) {
+        const y = H*0.5 + Math.sin(x/40) * 50 + Math.sin(x/120) * 80 + i * 6;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  },
+};
+
+const SCENE_LIST = Object.keys(SCENES);
+
+// Character sets (light → dark)
+const CHARSETS = {
+  classic:    ' .:-=+*#%@',
+  blocks:     ' ░▒▓█',
+  detailed:   ' .\'`^",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$',
+  minimal:    ' .#@',
+  binary:     '01',
+  dots:       ' ·•●',
+};
+
+const state = {
+  sample: meshy.SAMPLE_PHOTOS[0].id,
+  customImage: null,
+  charset: 'classic',
+  invert: false,
+  bgMode: 'blurred',
+  bgBlur: 12,
+  bgOpacity: 70,
+  bgColor: '#0a0a0a',
+  density: 10,
+  fontWeight: 700,
+  colorText: true,
+  textColor: '#ffffff',
+};
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('ASCII')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Background <span class="count">${meshy.SAMPLE_PHOTOS.length}</span></div>
+      <div class="bg-grid" id="bgGrid"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Background mode</div>
+      <div class="chips" id="bgModeChips">
+        <div class="chip active" data-m="blurred">Blurred</div>
+        <div class="chip" data-m="solid">Solid</div>
+        <div class="chip" data-m="transparent">None</div>
+      </div>
+      <div class="row" style="margin-top:14px"><label>Blur</label><span class="val" id="bgBlurVal">12px</span></div>
+      <input type="range" id="bgBlur" min="0" max="30" value="12">
+      <div class="row" style="margin-top:14px"><label>Opacity</label><span class="val" id="bgOpacityVal">70%</span></div>
+      <input type="range" id="bgOpacity" min="0" max="100" value="70">
+      <div class="row" style="margin-top:14px;display:none" id="solidColorRow"><label>Solid color</label></div>
+      <input type="color" id="bgColor" value="#0a0a0a" style="display:none">
+    </div>
+  </div>
+  ${meshy.hintHtml('Drop your own image anywhere')}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Characters</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Style</div>
+      <div class="chips" id="charsetChips">
+        ${Object.keys(CHARSETS).map(k => `<div class="chip ${k==='classic'?'active':''}" data-c="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</div>`).join('')}
+      </div>
+      <div class="chips" style="margin-top:8px">
+        <div class="chip" id="invertChip">Invert</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="row"><label>Density</label><span class="val" id="densityVal">10px</span></div>
+      <input type="range" id="density" min="4" max="24" value="10">
+      <div class="row" style="margin-top:14px"><label>Weight</label><span class="val" id="fontWeightVal">700</span></div>
+      <input type="range" id="fontWeight" min="300" max="900" step="100" value="700">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Text color</div>
+      <div class="chips" id="textModeChips">
+        <div class="chip active" data-m="color">From image</div>
+        <div class="chip" data-m="solid">Solid</div>
+      </div>
+      <input type="color" id="textColor" value="#ffffff" style="display:none;margin-top:10px">
+    </div>
+  </div>
+`;
+
+// ---------- Source image management ----------
+let _activeImg = null;
+function getActiveSource() { return state.customImage || _activeImg; }
+async function loadSampleById(id) {
+  try {
+    const img = await meshy.loadSample(id);
+    state.sample = id; state.customImage = null; _activeImg = img;
+    renderBgGrid(); render();
+  } catch (e) { meshy.toast('Failed to load sample'); }
+}
+
+// ---------- Render ----------
+function render(scale = 1) {
+  const src = getActiveSource();
+  if (!src) return;
+  const out = document.getElementById('outCanvas');
+  const ctx = out.getContext('2d');
+  const srcW = src.naturalWidth || src.width;
+  const srcH = src.naturalHeight || src.height;
+  const aspect = srcH / srcW;
+
+  const baseW = 832;
+  const W = baseW * scale;
+  const H = Math.round(W * aspect);
+  out.width = W;
+  out.height = H;
+  out.style.width = '';
+  out.style.height = '';
+
+  // 1. Background
+  if (state.bgMode === 'blurred') {
+    ctx.save();
+    ctx.filter = `blur(${state.bgBlur * scale}px)`;
+    ctx.drawImage(src, 0, 0, W, H);
+    ctx.restore();
+    if (state.bgOpacity < 100) {
+      ctx.fillStyle = `rgba(10,10,10,${1 - state.bgOpacity/100})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+  } else if (state.bgMode === 'solid') {
+    ctx.fillStyle = state.bgColor;
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    ctx.clearRect(0, 0, W, H);
+  }
+
+  // 2. Sample source at character grid
+  const cellSize = state.density * scale;
+  const cols = Math.max(1, Math.floor(W / cellSize));
+  const rows = Math.max(1, Math.floor(H / cellSize));
+
+  const sampleCanvas = document.createElement('canvas');
+  sampleCanvas.width = cols; sampleCanvas.height = rows;
+  sampleCanvas.getContext('2d').drawImage(src, 0, 0, cols, rows);
+  const data = sampleCanvas.getContext('2d').getImageData(0, 0, cols, rows).data;
+
+  // 3. Draw characters
+  const chars = state.invert ? Array.from(CHARSETS[state.charset]).reverse() : Array.from(CHARSETS[state.charset]);
+  ctx.font = `${state.fontWeight} ${cellSize * 1.05}px "JetBrains Mono", "SF Mono", monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const i = (y * cols + x) * 4;
+      const r = data[i], g = data[i+1], b = data[i+2];
+      const brightness = 0.299*r + 0.587*g + 0.114*b;
+      const ci = Math.min(chars.length - 1, Math.floor((brightness / 256) * chars.length));
+      const ch = chars[ci];
+      if (ch === ' ') continue;
+      ctx.fillStyle = state.colorText ? `rgb(${r},${g},${b})` : state.textColor;
+      ctx.fillText(ch, x * cellSize + cellSize/2, y * cellSize + cellSize/2);
+    }
+  }
+}
+
+// ---------- UI ----------
+function renderBgGrid() {
+  const wrap = document.getElementById('bgGrid');
+  wrap.innerHTML = '';
+  meshy.SAMPLE_PHOTOS.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'bg-tile' + (s.id === state.sample && !state.customImage ? ' active' : '');
+    el.style.background = `url("${s.url.replace('w=900','w=200')}") center/cover`;
+    el.title = s.name;
+    el.innerHTML = `<div style="position:absolute;bottom:4px;left:6px;font-size:9px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);font-weight:500">${s.name}</div>`;
+    el.addEventListener('click', () => loadSampleById(s.id));
+    wrap.appendChild(el);
+  });
+}
+
+function bindRange(id, key, suffix='', transform = x => +x) {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = transform(e.target.value);
+    document.getElementById(id+'Val').textContent = state[key] + suffix;
+    render();
+  });
+}
+bindRange('bgBlur', 'bgBlur', 'px');
+bindRange('bgOpacity', 'bgOpacity', '%');
+bindRange('density', 'density', 'px');
+bindRange('fontWeight', 'fontWeight');
+
+document.getElementById('bgColor').addEventListener('input', e => { state.bgColor = e.target.value; render(); });
+document.getElementById('textColor').addEventListener('input', e => { state.textColor = e.target.value; render(); });
+
+document.getElementById('charsetChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#charsetChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.charset = c.dataset.c;
+  render();
+});
+
+document.getElementById('invertChip').addEventListener('click', e => {
+  state.invert = !state.invert;
+  e.target.classList.toggle('active', state.invert);
+  render();
+});
+
+document.getElementById('bgModeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#bgModeChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.bgMode = c.dataset.m;
+  const showSolid = state.bgMode === 'solid';
+  document.getElementById('solidColorRow').style.display = showSolid ? 'flex' : 'none';
+  document.getElementById('bgColor').style.display = showSolid ? 'block' : 'none';
+  render();
+});
+
+document.getElementById('textModeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#textModeChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.colorText = c.dataset.m === 'color';
+  document.getElementById('textColor').style.display = state.colorText ? 'none' : 'block';
+  render();
+});
+
+// ---------- Custom image upload ----------
+document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e => e.target.files[0] && loadFile(e.target.files[0]));
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+});
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      state.customImage = img;
+      renderBgGrid();
+      render();
+      meshy.toast('Image loaded');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ---------- Export ----------
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const scale = +document.getElementById('exportRes').value;
+  render(scale);
+  const out = document.getElementById('outCanvas');
+  const link = document.createElement('a');
+  link.download = 'ascii-magic-' + Date.now() + '.png';
+  link.href = out.toDataURL('image/png');
+  link.click();
+  // restore display render
+  setTimeout(() => render(1), 50);
+  meshy.toast(`Exported ${out.width}×${out.height}`);
+});
+
+// ---------- Init ----------
+renderBgGrid();
+loadSampleById(state.sample);
+</script>
+</body>
+</html>

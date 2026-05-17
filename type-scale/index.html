@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Type Scale · meshy.fun</title>
+<meta name="description" content="Modular scale generator. Live preview, copy CSS variables." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=DM+Serif+Display&family=Space+Grotesk:wght@400;500;700&family=Playfair+Display:wght@400;700&family=Manrope:wght@400;500;700&family=Fraunces:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A type scale.</div>
+      <button class="btn primary" id="copyBtn">Copy CSS</button>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="scale-preview" id="scaleOut"></div>
+    </div>
+    <div class="canvas-bottom">
+      <div class="output-wrap">
+        <pre class="output" id="cssOut"></pre>
+        <button class="copy-btn" id="copyBtn2">Copy</button>
+      </div>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+  .scale-preview { padding: 40px 50px; height: 100%; overflow-y: auto; }
+  .scale-row { padding: 10px 0; border-bottom: 1px solid var(--line-2); display: flex; align-items: baseline; gap: 24px; }
+  .scale-row:last-child { border-bottom: none; }
+  .scale-label { font-family: 'SF Mono', monospace; font-size: 10.5px; color: var(--ink-3); width: 100px; flex-shrink: 0; }
+  .scale-text { line-height: 1.15; flex: 1; }
+</style>
+
+<script src="/shared.js"></script>
+<script>
+const NAMES = ['xs','sm','base','lg','xl','2xl','3xl','4xl','5xl','6xl'];
+const state = { base: 16, ratio: 1.25, font: 'Inter' };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Type')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="row"><label>Base size (px)</label><span class="val" id="baseVal">16</span></div>
+      <input type="range" id="base" min="12" max="22" value="16">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Ratio</div>
+      <div class="chips" id="ratioChips">
+        <div class="chip" data-r="1.125">Minor 2nd</div>
+        <div class="chip" data-r="1.2">Minor 3rd</div>
+        <div class="chip active" data-r="1.25">Major 3rd</div>
+        <div class="chip" data-r="1.333">Perfect 4th</div>
+        <div class="chip" data-r="1.414">Aug 4th</div>
+        <div class="chip" data-r="1.5">Perfect 5th</div>
+        <div class="chip" data-r="1.618">Golden</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Font</div>
+      <select id="font">
+        <option value="Inter">Inter</option>
+        <option value="Manrope">Manrope</option>
+        <option value="Space Grotesk">Space Grotesk</option>
+        <option value="Instrument Serif">Instrument Serif</option>
+        <option value="Playfair Display">Playfair Display</option>
+        <option value="DM Serif Display">DM Serif Display</option>
+        <option value="Fraunces">Fraunces</option>
+      </select>
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Sizes</div></div>
+  <div class="scroll">
+    <div class="sec" id="sizesList" style="font-family:'SF Mono',monospace;font-size:11px;color:var(--ink-2);line-height:1.8"></div>
+  </div>
+`;
+
+function compute() {
+  return NAMES.map((n, i) => {
+    const step = i - 2;
+    const size = state.base * Math.pow(state.ratio, step);
+    return { name: n, px: size };
+  });
+}
+
+function render() {
+  const sizes = compute();
+  const wrap = document.getElementById('scaleOut');
+  wrap.innerHTML = '';
+  wrap.style.fontFamily = `'${state.font}', sans-serif`;
+  sizes.forEach(s => {
+    const r = document.createElement('div');
+    r.className = 'scale-row';
+    r.innerHTML = `<div class="scale-label">${s.name} · ${s.px.toFixed(1)}px</div><div class="scale-text" style="font-size:${s.px}px">The quick brown fox</div>`;
+    wrap.appendChild(r);
+  });
+  const css = ':root {\n' + sizes.map(s => `  --text-${s.name}: ${(s.px/16).toFixed(3)}rem; /* ${s.px.toFixed(1)}px */`).join('\n') + '\n}';
+  document.getElementById('cssOut').textContent = css;
+  document.getElementById('sizesList').innerHTML = sizes.map(s => `<div style="display:flex;justify-content:space-between"><span>--text-${s.name}</span><span style="color:var(--ink-3)">${s.px.toFixed(1)}px</span></div>`).join('');
+}
+
+document.getElementById('base').addEventListener('input', e => {
+  state.base = +e.target.value;
+  document.getElementById('baseVal').textContent = state.base;
+  render();
+});
+document.getElementById('ratioChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  document.querySelectorAll('#ratioChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.ratio = +c.dataset.r;
+  render();
+});
+document.getElementById('font').addEventListener('change', e => { state.font = e.target.value; render(); });
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(document.getElementById('cssOut').textContent, 'CSS copied'));
+document.getElementById('copyBtn2').addEventListener('click', () => meshy.copy(document.getElementById('cssOut').textContent, 'CSS copied'));
+
+render();
+</script>
+</body>
+</html>

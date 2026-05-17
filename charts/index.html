@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SVG Charts · meshy.fun</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A quick chart.</div>
+      <button class="btn" id="copyBtn">Copy SVG</button>
+      <button class="btn primary" id="downloadBtn">Download SVG</button>
+    </div>
+    <div class="canvas" id="canvasWrap"><svg id="outSvg" width="100%" height="100%"></svg></div>
+  </main>
+  <aside class="sidebar right"></aside>
+</div>
+<style>
+  .canvas { display: flex; align-items: center; justify-content: center; padding: 40px; background: #fafafa; }
+  #outSvg { max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.1); border-radius: 12px; display: block; background: #fff; }
+</style>
+<script src="/shared.js"></script>
+<script>
+const PALETTES = {
+  iris: ['#667EEA','#764BA2','#F093FB','#F5576C','#4FACFE','#A8E6CF'],
+  sunset: ['#FF6B6B','#FFA07A','#FFD56B','#FF8E72','#FF5E78','#FF9466'],
+  ocean: ['#0EA5E9','#0284C7','#075985','#5EA9DD','#A4D2F4','#B0E0E6'],
+  mono: ['#0a0a0a','#3a3a3a','#5a5a5a','#7a7a7a','#aaaaaa','#dadada'],
+  forest: ['#283C2A','#52796F','#84A98C','#CAD2C5','#354F52','#6B8E5A'],
+};
+
+const EXAMPLE_DATA = {
+  bar: 'Jan,12\nFeb,19\nMar,8\nApr,24\nMay,17\nJun,29',
+  line: 'Mon,40\nTue,52\nWed,48\nThu,67\nFri,71\nSat,58\nSun,63',
+  donut: 'Apples,40\nOranges,25\nGrapes,20\nPears,15',
+};
+
+const state = { type: 'bar', palette: 'iris', data: EXAMPLE_DATA.bar, title: 'Monthly metric', w: 800, h: 500 };
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Charts')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Type</div>
+      <div class="chips" id="typeChips">
+        <div class="chip active" data-t="bar">Bar</div>
+        <div class="chip" data-t="line">Line</div>
+        <div class="chip" data-t="donut">Donut</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Palette</div>
+      <div class="chips" id="palChips">
+        ${Object.keys(PALETTES).map(k => `<div class="chip ${k==='iris'?'active':''}" data-p="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Title</div>
+      <input type="text" id="title" value="Monthly metric">
+    </div>
+  </div>
+  ${meshy.hintHtml()}
+`;
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Data</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">CSV (label, value)</div>
+      <textarea id="data" rows="10" style="font-family:'SF Mono',monospace;font-size:11px;line-height:1.5">${EXAMPLE_DATA.bar}</textarea>
+    </div>
+    <div class="sec">
+      <button class="btn full" id="exampleBtn">Load example for type</button>
+    </div>
+  </div>
+`;
+
+function parseData(s) {
+  return s.split(/\n/).map(l => l.trim()).filter(Boolean).map(l => {
+    const parts = l.split(/,|\t/);
+    return { label: parts[0].trim(), value: parseFloat(parts[1]) || 0 };
+  });
+}
+
+function buildSvg() {
+  const W = state.w, H = state.h;
+  const colors = PALETTES[state.palette];
+  const data = parseData(state.data);
+  const title = state.title ? `<text x="${W/2}" y="38" text-anchor="middle" font-family="Inter,sans-serif" font-size="22" font-weight="700" fill="#0a0a0a">${state.title}</text>` : '';
+  const padTop = state.title ? 70 : 30;
+  const padBottom = 50, padLeft = 50, padRight = 30;
+  const chartW = W - padLeft - padRight, chartH = H - padTop - padBottom;
+  let body = '';
+
+  if (state.type === 'bar') {
+    const max = Math.max(...data.map(d => d.value)) * 1.1;
+    const barW = chartW / data.length * 0.7;
+    const gap = chartW / data.length * 0.3;
+    data.forEach((d, i) => {
+      const x = padLeft + i*(barW+gap) + gap/2;
+      const h = (d.value/max) * chartH;
+      const y = padTop + chartH - h;
+      body += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="6" fill="${colors[i % colors.length]}"/>`;
+      body += `<text x="${x + barW/2}" y="${y - 8}" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="600" fill="#0a0a0a">${d.value}</text>`;
+      body += `<text x="${x + barW/2}" y="${padTop + chartH + 22}" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" fill="#525252">${d.label}</text>`;
+    });
+  } else if (state.type === 'line') {
+    const max = Math.max(...data.map(d => d.value)) * 1.1;
+    const min = Math.min(0, Math.min(...data.map(d => d.value)) * 0.9);
+    const range = max - min;
+    const stepX = chartW / (data.length - 1);
+    let path = '';
+    const points = data.map((d, i) => {
+      const x = padLeft + i*stepX;
+      const y = padTop + chartH - ((d.value - min)/range) * chartH;
+      return [x, y];
+    });
+    // smooth path
+    path = `M ${points[0][0]} ${points[0][1]}`;
+    for (let i = 1; i < points.length; i++) {
+      const p0 = points[i-1], p1 = points[i];
+      const cx = (p0[0]+p1[0])/2;
+      path += ` C ${cx} ${p0[1]}, ${cx} ${p1[1]}, ${p1[0]} ${p1[1]}`;
+    }
+    // area fill
+    body += `<defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${colors[0]}" stop-opacity="0.4"/><stop offset="100%" stop-color="${colors[0]}" stop-opacity="0"/></linearGradient></defs>`;
+    body += `<path d="${path} L ${points[points.length-1][0]} ${padTop+chartH} L ${padLeft} ${padTop+chartH} Z" fill="url(#area)"/>`;
+    body += `<path d="${path}" fill="none" stroke="${colors[0]}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+    points.forEach(([x,y], i) => {
+      body += `<circle cx="${x}" cy="${y}" r="4" fill="#fff" stroke="${colors[0]}" stroke-width="2"/>`;
+      body += `<text x="${x}" y="${padTop + chartH + 22}" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" fill="#525252">${data[i].label}</text>`;
+    });
+  } else if (state.type === 'donut') {
+    const total = data.reduce((a,d) => a + d.value, 0);
+    const cx = padLeft + chartW/2, cy = padTop + chartH/2;
+    const outerR = Math.min(chartW, chartH) / 2 * 0.85;
+    const innerR = outerR * 0.6;
+    let startAngle = -Math.PI/2;
+    data.forEach((d, i) => {
+      const angle = (d.value/total) * Math.PI * 2;
+      const endAngle = startAngle + angle;
+      const x1 = cx + Math.cos(startAngle) * outerR, y1 = cy + Math.sin(startAngle) * outerR;
+      const x2 = cx + Math.cos(endAngle) * outerR, y2 = cy + Math.sin(endAngle) * outerR;
+      const x3 = cx + Math.cos(endAngle) * innerR, y3 = cy + Math.sin(endAngle) * innerR;
+      const x4 = cx + Math.cos(startAngle) * innerR, y4 = cy + Math.sin(startAngle) * innerR;
+      const large = angle > Math.PI ? 1 : 0;
+      body += `<path d="M ${x1} ${y1} A ${outerR} ${outerR} 0 ${large} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 ${large} 0 ${x4} ${y4} Z" fill="${colors[i % colors.length]}"/>`;
+      // label
+      const midAngle = startAngle + angle/2;
+      const labelR = outerR + 20;
+      const lx = cx + Math.cos(midAngle) * labelR, ly = cy + Math.sin(midAngle) * labelR;
+      body += `<text x="${lx}" y="${ly}" text-anchor="${Math.cos(midAngle) > 0 ? 'start' : 'end'}" alignment-baseline="middle" font-family="Inter,sans-serif" font-size="12" fill="#0a0a0a">${d.label} <tspan font-weight="600">${Math.round(d.value/total*100)}%</tspan></text>`;
+      startAngle = endAngle;
+    });
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Inter,sans-serif">${title}${body}</svg>`;
+}
+
+function render() {
+  const svg = buildSvg();
+  document.getElementById('outSvg').outerHTML = svg.replace('<svg ', '<svg id="outSvg" ');
+}
+
+document.getElementById('data').addEventListener('input', e => { state.data = e.target.value; render(); });
+document.getElementById('title').addEventListener('input', e => { state.title = e.target.value; render(); });
+document.getElementById('typeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#typeChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); state.type = c.dataset.t; render();
+});
+document.getElementById('palChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#palChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active'); state.palette = c.dataset.p; render();
+});
+document.getElementById('exampleBtn').addEventListener('click', () => {
+  state.data = EXAMPLE_DATA[state.type];
+  document.getElementById('data').value = state.data;
+  render();
+});
+document.getElementById('copyBtn').addEventListener('click', () => meshy.copy(buildSvg(), 'SVG copied'));
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const blob = new Blob([buildSvg()], { type: 'image/svg+xml' });
+  const link = document.createElement('a'); link.download = 'chart.svg'; link.href = URL.createObjectURL(blob); link.click();
+});
+
+render();
+</script>
+</body>
+</html>
