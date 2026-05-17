@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Logo Studio · meshy.fun</title>
+<meta name="description" content="A serious logo generator. 24 pro templates, 5 layout systems, 80 icons, full export pack." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&family=Playfair+Display:wght@400;500;700;900&family=Fraunces:wght@400;500;700;900&family=DM+Serif+Display&family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Cormorant+Garamond:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Caveat:wght@400;700&family=Bricolage+Grotesque:wght@400;500;700;800&family=Geist:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<script defer src="https://api.pirsch.io/pa.js" id="pianjs" data-code="JNW76zWZEUF0RzRyD9UTUx3sSGtYNuI5"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+
+  <main class="canvas-wrap">
+    <div class="toolbar">
+      <div class="title">A logo, considered.</div>
+      <button class="btn" id="randomBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Random
+      </button>
+      <button class="btn" id="surpriseBtn" title="Generate entirely new design via color harmony">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.91 5.66 5.59.81L15 13.75 16.36 19 12 16.23 7.64 19 9 13.75 4.5 9.47l5.59-.81z"/></svg>
+        Surprise me
+      </button>
+      <button class="btn" id="svgBtn">SVG</button>
+      <div class="dropdown" id="exportDD">
+        <button class="btn primary" id="exportBtn">Export pack ▾</button>
+        <div class="dropdown-menu" id="exportMenu">
+          <div class="menu-section">PNG</div>
+          <button data-export="png-1024">PNG · 1024px</button>
+          <button data-export="png-2048">PNG · 2048px</button>
+          <button data-export="png-4096">PNG · 4096px (print)</button>
+          <div class="menu-section">SVG</div>
+          <button data-export="svg-light">SVG · light</button>
+          <button data-export="svg-dark">SVG · dark variant</button>
+          <div class="menu-section">App icons</div>
+          <button data-export="favicon">Favicon set (16/32/180/512)</button>
+          <button data-export="social">Social pack (OG, X header, square)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas" id="canvas">
+      <div class="logo-stage" id="logoStage"></div>
+    </div>
+
+    <div class="canvas-bottom">
+      <div class="context-row" id="contextRow"></div>
+    </div>
+  </main>
+
+  <aside class="sidebar right"></aside>
+</div>
+
+<style>
+.canvas { display: flex; align-items: center; justify-content: center; padding: 30px; background: #fafafa; }
+.canvas.dark { background: #0a0a0a; }
+.logo-stage { width: 100%; max-width: 100%; max-height: 100%; display: flex; align-items: center; justify-content: center; }
+.logo-stage svg { max-width: 100%; max-height: 56vh; }
+
+/* Context preview row */
+.context-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 8px 0; }
+.ctx { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.ctx .ctx-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); font-weight: 600; margin-bottom: 8px; }
+.ctx-content { display: flex; align-items: center; justify-content: center; height: 90px; overflow: hidden; }
+.ctx.dark { background: #0a0a0a; }
+.ctx.dark .ctx-label { color: #525252; }
+.ctx-favicon { background: #f0eee9; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 18px 12px; gap: 8px; }
+.ctx-favicon svg { width: 18px; height: 18px; flex-shrink: 0; }
+.ctx-favicon .url-bar { background: #fff; border-radius: 8px; padding: 6px 10px; font-size: 11px; color: var(--ink-2); flex: 1; font-family: 'JetBrains Mono', monospace; }
+.ctx-card { background: linear-gradient(135deg, #f5f5f0, #fafaf9); border-radius: 8px; padding: 18px 14px; box-shadow: 0 4px 12px rgba(0,0,0,.08); display: flex; align-items: center; justify-content: center; }
+.ctx-card svg { max-width: 80%; max-height: 60%; }
+.ctx-mobile { background: #1a1a1f; border-radius: 14px; padding: 14px 16px 8px; display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.ctx-mobile .status-bar { display: flex; justify-content: space-between; font-size: 8px; color: #aaa; font-family: 'JetBrains Mono', monospace; }
+.ctx-mobile .app-icon-row { display: flex; gap: 8px; align-items: center; justify-content: center; flex: 1; }
+.ctx-mobile .app-icon { width: 36px; height: 36px; border-radius: 8px; background: #2a2a2f; display: flex; align-items: center; justify-content: center; }
+.ctx-mobile .app-icon.feature { box-shadow: 0 0 0 1.5px #fff; }
+.ctx-mobile .app-icon svg, .ctx-mobile .app-icon img { width: 28px; height: 28px; }
+.ctx-tshirt { background: #f5f1e8; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 14px; position: relative; overflow: hidden; }
+.ctx-tshirt::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,.04), transparent 60%); }
+.ctx-tshirt svg { max-width: 56%; max-height: 60%; position: relative; z-index: 1; }
+
+/* Library grid */
+.lib-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lib-tile {
+  aspect-ratio: 1.5/1;
+  background: #fff;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .12s ease, border-color .12s ease;
+}
+.lib-tile:hover { transform: translateY(-2px); border-color: #e0e0e0; }
+.lib-tile.active { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.lib-tile svg { max-width: 100%; max-height: 100%; }
+
+/* Color picker grid */
+.cmode-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.color-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin-top: 8px; }
+.color-grid .swatch { aspect-ratio: 1; border-radius: 6px; cursor: pointer; border: 1.5px solid transparent; }
+.color-grid .swatch.active { border-color: var(--ink); transform: scale(0.92); }
+.palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.palette-tile { aspect-ratio: 2/1; border-radius: 6px; cursor: pointer; border: 1.5px solid transparent; overflow: hidden; }
+.palette-tile.active { border-color: var(--ink); }
+.palette-tile .strip { display: flex; height: 100%; }
+.palette-tile .strip span { flex: 1; }
+
+/* Icon picker */
+.icon-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; max-height: 200px; overflow-y: auto; padding: 2px; }
+.icon-pick { aspect-ratio: 1; border-radius: 6px; background: var(--line-2); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1.5px solid transparent; transition: all .1s; }
+.icon-pick:hover { background: #eaeaea; }
+.icon-pick.active { background: var(--ink); border-color: var(--ink); }
+.icon-pick.active svg { color: #fff; }
+.icon-pick svg { width: 60%; height: 60%; color: var(--ink); }
+
+/* Dropdown */
+.dropdown { position: relative; }
+.dropdown-menu { position: absolute; top: calc(100% + 6px); right: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: var(--shadow); min-width: 240px; z-index: 50; display: none; }
+.dropdown.open .dropdown-menu { display: block; }
+.dropdown-menu .menu-section { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); padding: 8px 10px 4px; font-weight: 600; }
+.dropdown-menu button { display: block; width: 100%; text-align: left; background: transparent; border: none; padding: 7px 10px; border-radius: 7px; font-family: inherit; font-size: 12px; color: var(--ink); cursor: pointer; }
+.dropdown-menu button:hover { background: var(--line-2); }
+
+/* Font picker (small label-style chips with the font shown) */
+.font-pick { padding: 7px 11px; border-radius: 8px; background: var(--line-2); cursor: pointer; border: 1px solid transparent; font-size: 13px; line-height: 1; transition: all .12s; }
+.font-pick:hover { background: #eaeaea; }
+.font-pick.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+.font-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+@media (max-width: 880px) {
+  .context-row { grid-template-columns: 1fr 1fr; }
+}
+</style>
+
+<script src="/shared.js"></script>
+<script>
+// ============================================================
+// LOGO STUDIO — pro logo generator
+// ============================================================
+
+// ---------- Icon library (Lucide-style outline + a few abstract marks) ----------
+const ICONS = {
+  // Shapes / abstract
+  triangle:  'M12 3 L22 21 L2 21 Z',
+  square:    'M3 3 H21 V21 H3 Z',
+  hexagon:   'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z',
+  diamond:   'M12 2 L22 12 L12 22 L2 12 Z',
+  circle:    'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',
+  octagon:   'M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z',
+  swoosh:    'M3 18 C 7 17, 13 14, 17 8 C 19 5, 21 4, 21 4 L 21 8 C 17 11, 11 16, 5 19',
+  arrowR:    'M5 12 H19 M14 7 L19 12 L14 17',
+  arrowUR:   'M7 17 L17 7 M9 7 H17 V15',
+  bolt:      'M13 2L3 14h9l-1 8 10-12h-9z',
+  // Nature
+  sun:       'M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41',
+  moon:      'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
+  mountain:  'M8 3l4 8 5-5 5 15H2L8 3z',
+  cloud:     'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z',
+  flame:     'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z',
+  droplet:   'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z',
+  leaf:      'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96a1 1 0 0 1 1.8.78c-3 12.5-7 17-10 17z M2 21c0-3 1.85-5.36 5.08-6',
+  flower:    'M12 7.5a4.5 4.5 0 1 1 4.5 4.5M12 7.5A4.5 4.5 0 1 0 7.5 12M12 7.5V9m-4.5 3a4.5 4.5 0 1 0 4.5 4.5M7.5 12H9m7.5 0a4.5 4.5 0 1 1-4.5 4.5m4.5-4.5H15m-3 4.5V15 M12 7.5V2 M12 22v-2.5',
+  tree:      'M17 14v7 M9 14v7 M13 3a4 4 0 0 0-4 4v3a4 4 0 0 0-4 4 4 4 0 0 0 4 4h10a4 4 0 0 0 4-4 4 4 0 0 0-4-4V7a4 4 0 0 0-4-4z',
+  wave:      'M3 12 Q 7 6 12 12 T 21 12 M3 18 Q 7 12 12 18 T 21 18',
+  snowflake: 'M2 12h20 M12 2v20 M20 16l-4-4 4-4 M4 8l4 4-4 4 M16 4l-4 4-4-4 M8 20l4-4 4 4',
+  // Tech
+  cpu:       'M4 4h16v16H4z M9 1v3 M15 1v3 M9 20v3 M15 20v3 M20 9h3 M20 14h3 M1 9h3 M1 14h3 M9 9h6v6H9z',
+  code:      'M16 18l6-6-6-6 M8 6l-6 6 6 6',
+  terminal:  'M4 17l6-6-6-6 M12 19h8',
+  rocket:    'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0',
+  globe:     'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+  satellite: 'M13 7l-1.65 1.65a4 4 0 0 0 0 5.65l3.4 3.4a4 4 0 0 0 5.65 0L22 16 M18 13l-1.5-1.5 M11 17l-1.5-1.5 M8.5 8.5L7 7l-3 3 1.5 1.5L4 13l3 3 1.5-1.5L10 16l3-3-1.5-1.5L13 10z',
+  atom:      'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 2c1.5 3 2.5 6.5 2.5 10s-1 7-2.5 10c-1.5-3-2.5-6.5-2.5-10s1-7 2.5-10z M2.5 9.5c3 1.5 6 2.5 9.5 2.5s6.5-1 9.5-2.5',
+  // Objects
+  camera:    'M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  music:     'M9 18V5l12-2v13 M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z M21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+  headphones:'M3 18v-6a9 9 0 0 1 18 0v6 M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z',
+  book:      'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z',
+  briefcase: 'M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z',
+  coffee:    'M17 8h1a4 4 0 1 1 0 8h-1 M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z M6 1v3 M10 1v3 M14 1v3',
+  key:       'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4',
+  lock:      'M5 11h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z M7 11V7a5 5 0 0 1 10 0v4',
+  crown:     'M2 4l3 12h14l3-12-6 7-4-7-4 7z M5 21h14',
+  anchor:    'M12 22V8 M5 12H2a10 10 0 0 0 20 0h-3 M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  bookmark:  'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
+  feather:   'M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z M16 8L2 22 M17.5 15H9',
+  // Symbols
+  star:      'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+  heart:     'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
+  sparkle:   'M12 3l1.91 5.66 5.59.81L15 13.75 16.36 19 12 16.23 7.64 19 9 13.75 4.5 9.47l5.59-.81z',
+  infinity:  'M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.739-8z',
+  target:    'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+  compass:   'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z',
+  award:     'M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M8.21 13.89L7 23l5-3 5 3-1.21-9.12',
+  shield:    'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  eye:       'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  smile:     'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M8 14s1.5 2 4 2 4-2 4-2 M9 9h.01 M15 9h.01',
+  peace:     'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 2v20 M2 12h20 M19 19l-7-7-7 7',
+  brain:     'M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z M12 5v13',
+  // Animals
+  cat:       'M12 5C9 3 4 4 4 8c0 2 1 4 3 5l-1 8h4l1-3 1 3h4l-1-8c2-1 3-3 3-5 0-4-5-5-8-3z M8 9h.01 M16 9h.01',
+  fish:      'M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6z M18 12v.5 M16 17.93a9.77 9.77 0 0 1 0-11.86 M7 10.67C5 9 2 9.67 2 9.67c.55 1.83.81 3.34 0 5 0 0 3 .67 5-1 0 0-1 6 6 6.67 0 0-1.5-2.67-1.5-5',
+  bird:      'M16 7h.01 M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20 M20 7L13.7 5.3',
+  butterfly: 'M12 22V8 M12 8C8 4 2 6 2 12s6 8 10 4 10 2 10-4-4-8-10-4 M12 14h.01',
+  paw:       'M11 14a4 4 0 0 0-4 4v.01M13 14a4 4 0 0 1 4 4v.01M3 9c1-2 3-2 3 0s-2 3-3 0z M21 9c-1-2-3-2-3 0s2 3 3 0z M8 5c0-2 1-3 2-3s2 1 2 3-1 3-2 3-2-1-2-3z M14 5c0-2 1-3 2-3s2 1 2 3-1 3-2 3-2-1-2-3z',
+  // Misc
+  plus:      'M12 5v14 M5 12h14',
+  cross:     'M5 5l14 14 M19 5L5 19',
+  asterisk:  'M12 6v12 M17.196 9L6.804 15 M6.804 9l10.392 6',
+  hash:      'M4 9h16 M4 15h16 M10 3L8 21 M16 3l-2 18',
+  dots3:     'M12 5h.01 M12 12h.01 M12 19h.01',
+};
+const ICON_LIST = Object.keys(ICONS);
+
+// ---------- Color palettes (curated, named) ----------
+const PALETTES = {
+  mono:      ['#0a0a0a','#3a3a3a','#7a7a7a','#cdcdcd','#fafafa'],
+  midnight:  ['#0F2027','#203A43','#2C5364','#1F1C2C','#928DAB'],
+  iris:      ['#667EEA','#764BA2','#F093FB','#F5576C','#4FACFE'],
+  peach:     ['#FFB199','#FF8FA3','#FFC8A2','#FFD6A5','#FF9A8B'],
+  sunset:    ['#FF6B6B','#FFA07A','#FFD56B','#FF8E72','#FF5E78'],
+  ocean:     ['#A1C4FD','#5B86E5','#36D1DC','#0EA5E9','#075985'],
+  forest:    ['#283C2A','#52796F','#84A98C','#CAD2C5','#354F52'],
+  mocha:     ['#A47864','#C9A47C','#7B5944','#E6CFB5','#8D6748'],
+  cyber:     ['#FF0080','#7928CA','#FF4D4D','#F9CB28','#0070F3'],
+  mint:      ['#D4FC79','#96E6A1','#A1FFCE','#C2E9FB','#FAFFD1'],
+  rose:      ['#F472B6','#EC4899','#DB2777','#9D174D','#FDF2F8'],
+  emerald:   ['#10B981','#059669','#047857','#34D399','#A7F3D0'],
+  amber:     ['#F59E0B','#D97706','#FBBF24','#FCD34D','#FEF3C7'],
+  violet:    ['#8B5CF6','#7C3AED','#A78BFA','#C4B5FD','#EDE9FE'],
+  red:       ['#EF4444','#DC2626','#B91C1C','#7F1D1D','#FEE2E2'],
+  graphite:  ['#18181B','#27272A','#3F3F46','#71717A','#A1A1AA'],
+};
+const PALETTE_LIST = Object.keys(PALETTES);
+const stops = [[20,25],[75,30],[40,75],[80,80],[50,50]];
+
+// ---------- Font set ----------
+const FONTS = [
+  { id: 'Inter', name: 'Inter', stack: "Inter, sans-serif" },
+  { id: 'Geist', name: 'Geist', stack: "Geist, sans-serif" },
+  { id: 'Manrope', name: 'Manrope', stack: "Manrope, sans-serif" },
+  { id: 'Outfit', name: 'Outfit', stack: "Outfit, sans-serif" },
+  { id: 'Space Grotesk', name: 'Space Grotesk', stack: "'Space Grotesk', sans-serif" },
+  { id: 'Plus Jakarta Sans', name: 'Plus Jakarta', stack: "'Plus Jakarta Sans', sans-serif" },
+  { id: 'Bricolage Grotesque', name: 'Bricolage', stack: "'Bricolage Grotesque', sans-serif" },
+  { id: 'Instrument Serif', name: 'Instrument Serif', stack: "'Instrument Serif', serif" },
+  { id: 'Playfair Display', name: 'Playfair', stack: "'Playfair Display', serif" },
+  { id: 'Fraunces', name: 'Fraunces', stack: "Fraunces, serif" },
+  { id: 'DM Serif Display', name: 'DM Serif', stack: "'DM Serif Display', serif" },
+  { id: 'Cormorant Garamond', name: 'Cormorant', stack: "'Cormorant Garamond', serif" },
+  { id: 'Lora', name: 'Lora', stack: "Lora, serif" },
+  { id: 'JetBrains Mono', name: 'JetBrains Mono', stack: "'JetBrains Mono', monospace" },
+];
+function fontStack(id) { return (FONTS.find(f => f.id === id) || FONTS[0]).stack; }
+
+// ---------- Library of pre-designed pro logos ----------
+// Each template is fully editable — clicking a template loads it into state.
+const LIBRARY = [
+  // TECH / MINIMAL
+  { id: 'cipher', name: 'Cipher', cat: 'Tech',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'triangle', shape: 'none', mode: 'solid', color: '#0a0a0a', strokeOnly: false },
+    text: { name: 'CIPHER', font: 'JetBrains Mono', weight: 700, case: 'upper', tracking: 0.04, italic: false, color: '#0a0a0a' },
+    tagline: '', spacing: 14, bg: 'light' },
+
+  { id: 'flux', name: 'Flux', cat: 'Tech',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'bolt', shape: 'squircle', mode: 'mesh', palette: 'iris', strokeOnly: false },
+    text: { name: 'Flux', font: 'Inter', weight: 800, case: 'as-is', tracking: -0.03, italic: false, color: '#0a0a0a' },
+    tagline: 'Realtime APIs', spacing: 14, bg: 'light' },
+
+  { id: 'orbit', name: 'Orbit', cat: 'Tech',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'circle', shape: 'none', mode: 'solid', color: '#0070F3', strokeOnly: true, strokeWidth: 3 },
+    text: { name: 'orbit', font: 'Space Grotesk', weight: 500, case: 'lower', tracking: -0.02, italic: false, color: '#0a0a0a' },
+    tagline: '', spacing: 12, bg: 'light' },
+
+  { id: 'meridian', name: 'Meridian', cat: 'Tech',
+    layout: 'vertical',
+    mark: { type: 'icon', value: 'hexagon', shape: 'none', mode: 'gradient', color: '#10B981', color2: '#0EA5E9', strokeOnly: false },
+    text: { name: 'Meridian', font: 'Geist', weight: 700, case: 'as-is', tracking: -0.02, italic: false, color: '#0a0a0a' },
+    tagline: 'Infrastructure for builders', spacing: 18, bg: 'light' },
+
+  // EDITORIAL / SERIF
+  { id: 'folio', name: 'Folio', cat: 'Editorial',
+    layout: 'horizontal',
+    mark: { type: 'letter', value: 'F', shape: 'circle', mode: 'solid', color: '#1A1A1A', strokeOnly: false, textColor: '#fff', font: 'Instrument Serif' },
+    text: { name: 'Folio', font: 'Instrument Serif', weight: 400, case: 'as-is', tracking: -0.02, italic: true, color: '#1A1A1A' },
+    tagline: 'A reading list', spacing: 14, bg: 'cream' },
+
+  { id: 'lumiere', name: 'Lumière', cat: 'Editorial',
+    layout: 'wordmark',
+    text: { name: 'Lumière', font: 'Fraunces', weight: 500, case: 'as-is', tracking: -0.01, italic: true, color: '#0a0a0a' },
+    tagline: 'EST. 2026', spacing: 0, bg: 'cream' },
+
+  { id: 'substack-ish', name: 'Atlas', cat: 'Editorial',
+    layout: 'horizontal',
+    mark: { type: 'letter', value: 'A', shape: 'squircle', mode: 'solid', color: '#E94560', strokeOnly: false, textColor: '#fff', font: 'Fraunces' },
+    text: { name: 'Atlas', font: 'Fraunces', weight: 700, case: 'as-is', tracking: -0.02, italic: false, color: '#0a0a0a' },
+    tagline: '', spacing: 14, bg: 'light' },
+
+  { id: 'manor', name: 'Manor', cat: 'Editorial',
+    layout: 'badge',
+    mark: { type: 'icon', value: 'crown', shape: 'circle', mode: 'solid', color: '#1A1A1A', strokeOnly: false, textColor: '#fff' },
+    text: { name: 'MANOR', font: 'Cormorant Garamond', weight: 600, case: 'upper', tracking: 0.18, italic: false, color: '#1A1A1A' },
+    tagline: 'A private members club', spacing: 14, bg: 'cream' },
+
+  // PLAYFUL
+  { id: 'puddle', name: 'Puddle', cat: 'Playful',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'droplet', shape: 'squircle', mode: 'mesh', palette: 'ocean', strokeOnly: false },
+    text: { name: 'puddle', font: 'Outfit', weight: 800, case: 'lower', tracking: -0.03, italic: false, color: '#075985' },
+    tagline: '', spacing: 12, bg: 'light' },
+
+  { id: 'pop', name: 'Pop', cat: 'Playful',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'sparkle', shape: 'circle', mode: 'gradient', color: '#FF0080', color2: '#7928CA', strokeOnly: false },
+    text: { name: 'Pop', font: 'Bricolage Grotesque', weight: 800, case: 'as-is', tracking: -0.04, italic: true, color: '#FF0080' },
+    tagline: '', spacing: 12, bg: 'light' },
+
+  { id: 'mango', name: 'Mango', cat: 'Playful',
+    layout: 'vertical',
+    mark: { type: 'icon', value: 'sun', shape: 'circle', mode: 'solid', color: '#F59E0B', strokeOnly: false, textColor: '#fff' },
+    text: { name: 'Mango', font: 'Manrope', weight: 800, case: 'as-is', tracking: -0.03, italic: false, color: '#D97706' },
+    tagline: 'fresh stuff, daily', spacing: 16, bg: 'light' },
+
+  // LUXURY / MINIMAL
+  { id: 'noir', name: 'NOIR', cat: 'Luxury',
+    layout: 'wordmark',
+    text: { name: 'NOIR', font: 'Inter', weight: 300, case: 'upper', tracking: 0.36, italic: false, color: '#0a0a0a' },
+    tagline: '', spacing: 0, bg: 'light' },
+
+  { id: 'maison', name: 'Maison', cat: 'Luxury',
+    layout: 'vertical',
+    mark: { type: 'icon', value: 'diamond', shape: 'none', mode: 'solid', color: '#0a0a0a', strokeOnly: true, strokeWidth: 1.5 },
+    text: { name: 'MAISON', font: 'Cormorant Garamond', weight: 400, case: 'upper', tracking: 0.28, italic: false, color: '#0a0a0a' },
+    tagline: 'PARIS · 2026', spacing: 18, bg: 'cream' },
+
+  { id: 'aurum', name: 'Aurum', cat: 'Luxury',
+    layout: 'horizontal',
+    mark: { type: 'letter', value: 'A', shape: 'circle', mode: 'solid', color: '#F59E0B', strokeOnly: true, strokeWidth: 1.5, textColor: '#F59E0B', font: 'Cormorant Garamond' },
+    text: { name: 'Aurum', font: 'Cormorant Garamond', weight: 500, case: 'as-is', tracking: 0.04, italic: true, color: '#0a0a0a' },
+    tagline: '', spacing: 14, bg: 'cream' },
+
+  // BOLD
+  { id: 'forge', name: 'FORGE', cat: 'Bold',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'flame', shape: 'square', mode: 'solid', color: '#EF4444', strokeOnly: false, textColor: '#fff' },
+    text: { name: 'FORGE', font: 'Inter', weight: 900, case: 'upper', tracking: -0.02, italic: false, color: '#0a0a0a' },
+    tagline: '', spacing: 14, bg: 'light' },
+
+  { id: 'apex', name: 'Apex', cat: 'Bold',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'mountain', shape: 'none', mode: 'solid', color: '#0a0a0a', strokeOnly: false },
+    text: { name: 'APEX', font: 'Outfit', weight: 900, case: 'upper', tracking: 0.02, italic: false, color: '#0a0a0a' },
+    tagline: '', spacing: 12, bg: 'light' },
+
+  { id: 'ironside', name: 'IRONSIDE', cat: 'Bold',
+    layout: 'wordmark',
+    text: { name: 'IRONSIDE', font: 'Outfit', weight: 900, case: 'upper', tracking: -0.02, italic: true, color: '#0a0a0a' },
+    tagline: '', spacing: 0, bg: 'light' },
+
+  // MESH / MODERN
+  { id: 'mesh-co', name: 'Mesh & Co', cat: 'Modern',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'hexagon', shape: 'none', mode: 'mesh', palette: 'iris', strokeOnly: false },
+    text: { name: 'Mesh & Co', font: 'Instrument Serif', weight: 400, case: 'as-is', tracking: -0.02, italic: true, color: '#0a0a0a' },
+    tagline: '', spacing: 14, bg: 'light' },
+
+  { id: 'prism', name: 'Prism', cat: 'Modern',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'triangle', shape: 'none', mode: 'mesh', palette: 'cyber', strokeOnly: false },
+    text: { name: 'prism', font: 'Inter', weight: 700, case: 'lower', tracking: -0.04, italic: false, color: '#0a0a0a' },
+    tagline: '', spacing: 12, bg: 'light' },
+
+  { id: 'aura', name: 'Aura', cat: 'Modern',
+    layout: 'vertical',
+    mark: { type: 'icon', value: 'sparkle', shape: 'circle', mode: 'mesh', palette: 'sunset', strokeOnly: false },
+    text: { name: 'Aura', font: 'Plus Jakarta Sans', weight: 700, case: 'as-is', tracking: -0.02, italic: false, color: '#0a0a0a' },
+    tagline: 'glow up', spacing: 16, bg: 'light' },
+
+  // OUTDOOR / VINTAGE
+  { id: 'wildhaven', name: 'WILDHAVEN', cat: 'Outdoor',
+    layout: 'vertical',
+    mark: { type: 'icon', value: 'mountain', shape: 'circle', mode: 'solid', color: '#283C2A', strokeOnly: true, strokeWidth: 2.5, textColor: '#283C2A' },
+    text: { name: 'WILDHAVEN', font: 'Manrope', weight: 800, case: 'upper', tracking: 0.16, italic: false, color: '#283C2A' },
+    tagline: 'EST. 2026 · CO', spacing: 16, bg: 'cream' },
+
+  { id: 'cabin', name: 'Cabin Co', cat: 'Outdoor',
+    layout: 'badge',
+    mark: { type: 'icon', value: 'tree', shape: 'none', mode: 'solid', color: '#52796F', strokeOnly: false },
+    text: { name: 'CABIN CO', font: 'Manrope', weight: 700, case: 'upper', tracking: 0.2, italic: false, color: '#283C2A' },
+    tagline: 'NORTH SHORE · WI', spacing: 0, bg: 'cream' },
+
+  // SCIENCE / RESEARCH
+  { id: 'helix', name: 'Helix', cat: 'Science',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'atom', shape: 'circle', mode: 'solid', color: '#7C3AED', strokeOnly: false, textColor: '#fff' },
+    text: { name: 'Helix', font: 'Geist', weight: 600, case: 'as-is', tracking: -0.02, italic: false, color: '#0a0a0a' },
+    tagline: 'AI for biology', spacing: 14, bg: 'light' },
+
+  { id: 'origin', name: 'Origin', cat: 'Science',
+    layout: 'horizontal',
+    mark: { type: 'icon', value: 'globe', shape: 'none', mode: 'gradient', color: '#10B981', color2: '#3B82F6', strokeOnly: true, strokeWidth: 2 },
+    text: { name: 'origin', font: 'JetBrains Mono', weight: 400, case: 'lower', tracking: 0.02, italic: false, color: '#0a0a0a' },
+    tagline: '', spacing: 12, bg: 'light' },
+];
+
+// ---------- Default state (start with Flux as default) ----------
+const state = JSON.parse(JSON.stringify(LIBRARY[1]));
+state.template = LIBRARY[1].id;
+
+// ---------- Helpers ----------
+function hexToRgb(h) { return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+function lum(rgb) { const a = rgb.map(v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);}); return a[0]*0.2126+a[1]*0.7152+a[2]*0.0722; }
+function escape(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function transformText(t, c) { if (c === 'lower') return t.toLowerCase(); if (c === 'upper') return t.toUpperCase(); return t; }
+function autoTextColor(bg) { return lum(hexToRgb(bg)) > 0.55 ? '#0a0a0a' : '#ffffff'; }
+
+function shapePath(shape, s) {
+  switch (shape) {
+    case 'circle':   return `<circle cx="${s/2}" cy="${s/2}" r="${s/2}"/>`;
+    case 'squircle': return `<rect width="${s}" height="${s}" rx="${s*0.30}"/>`;
+    case 'rounded':  return `<rect width="${s}" height="${s}" rx="${s*0.14}"/>`;
+    case 'square':   return `<rect width="${s}" height="${s}"/>`;
+    case 'hexagon': {
+      const cx=s/2, cy=s/2, r=s/2;
+      const pts=[];
+      for (let i=0;i<6;i++){ const a=(Math.PI/3)*i - Math.PI/2; pts.push(`${(cx+r*Math.cos(a)).toFixed(1)},${(cy+r*Math.sin(a)).toFixed(1)}`); }
+      return `<polygon points="${pts.join(' ')}"/>`;
+    }
+  }
+  return '';
+}
+
+// ---------- Render a mark element (inside an SVG group, sized to 100x100) ----------
+let _gradId = 0;
+function nextGradId() { return 'g' + (++_gradId); }
+
+function renderMarkSvg(m, sizeBox = 100) {
+  if (m.type === 'none') return { svg: '', width: 0, height: 0 };
+
+  // Determine fill spec — solid / gradient / mesh / outline
+  let fillDefs = '', fillAttr = '#000', layers = '';
+  if (m.mode === 'solid') {
+    fillAttr = m.color || '#0a0a0a';
+  } else if (m.mode === 'gradient') {
+    const id = nextGradId();
+    fillDefs = `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${m.color}"/><stop offset="100%" stop-color="${m.color2}"/></linearGradient>`;
+    fillAttr = `url(#${id})`;
+  } else if (m.mode === 'mesh') {
+    const colors = PALETTES[m.palette] || PALETTES.iris;
+    const ids = colors.map(() => nextGradId());
+    fillDefs = colors.map((c, i) => {
+      const [x, y] = stops[i % stops.length];
+      return `<radialGradient id="${ids[i]}" cx="${x}%" cy="${y}%" r="55%"><stop offset="0%" stop-color="${c}" stop-opacity="0.95"/><stop offset="100%" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+    }).join('');
+    fillAttr = colors[0];
+    layers = colors.map((c, i) => `<rect width="${sizeBox}" height="${sizeBox}" fill="url(#${ids[i]})" style="mix-blend-mode:${i===0?'normal':'screen'}"/>`).join('');
+  }
+
+  // Decide if we're rendering a "shape with content inside" or "icon with no enclosing shape"
+  const hasShape = m.shape && m.shape !== 'none';
+  let body = '';
+
+  if (hasShape) {
+    // Outer shape clip + fill
+    const shapeD = shapePath(m.shape, sizeBox);
+    const clipId = 'c' + (++_gradId);
+    fillDefs += `<clipPath id="${clipId}">${shapeD}</clipPath>`;
+    if (m.strokeOnly) {
+      // Outline-only shape — different rendering
+      const strokeW = m.strokeWidth || 2;
+      // The shape path is a circle/rect — extract just the geometry
+      body = renderStrokedShape(m.shape, sizeBox, m.color || '#0a0a0a', strokeW);
+    } else {
+      // Filled shape
+      body = `<g clip-path="url(#${clipId})">
+        <rect width="${sizeBox}" height="${sizeBox}" fill="${fillAttr}"/>
+        ${layers}
+      </g>`;
+    }
+    // Add icon or letter on top
+    if (m.type === 'icon' && ICONS[m.value]) {
+      const tc = m.textColor || (m.strokeOnly ? (m.color || '#0a0a0a') : autoTextColor(fillAttr));
+      const iconScale = sizeBox * 0.5 / 24;
+      const tx = (sizeBox - 24 * iconScale) / 2, ty = (sizeBox - 24 * iconScale) / 2;
+      body += `<g transform="translate(${tx} ${ty}) scale(${iconScale})" stroke="${tc}" stroke-width="${(m.strokeOnly ? 2 : 2)}" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="${ICONS[m.value]}"/></g>`;
+    } else if (m.type === 'letter') {
+      const tc = m.textColor || autoTextColor(fillAttr);
+      const fs = sizeBox * 0.55;
+      const font = m.font || 'Inter';
+      body += `<text x="${sizeBox/2}" y="${sizeBox/2}" text-anchor="middle" dominant-baseline="central" fill="${tc}" font-family="${fontStack(font)}" font-weight="800" font-size="${fs}" letter-spacing="-0.02em">${escape(m.value || 'A')}</text>`;
+    }
+  } else {
+    // No outer shape — render the icon or letter at full mark size
+    if (m.type === 'icon' && ICONS[m.value]) {
+      const iconScale = sizeBox / 24;
+      if (m.strokeOnly) {
+        const strokeW = m.strokeWidth || 2;
+        body = `<g transform="scale(${iconScale})" stroke="${m.color || '#0a0a0a'}" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="${ICONS[m.value]}"/></g>`;
+      } else {
+        body = `<g transform="scale(${iconScale})" fill="${fillAttr}" stroke="none"><path d="${ICONS[m.value]}"/></g>`;
+        if (m.mode === 'mesh') {
+          // Mesh fill on no-shape icon — needs clip-path of the icon
+          const clipId = 'ic' + (++_gradId);
+          fillDefs += `<clipPath id="${clipId}"><g transform="scale(${iconScale})"><path d="${ICONS[m.value]}"/></g></clipPath>`;
+          body = `<g clip-path="url(#${clipId})"><rect width="${sizeBox}" height="${sizeBox}" fill="${fillAttr}"/>${layers}</g>`;
+        }
+      }
+    } else if (m.type === 'letter') {
+      const fs = sizeBox * 0.85;
+      const font = m.font || 'Inter';
+      body = `<text x="${sizeBox/2}" y="${sizeBox/2}" text-anchor="middle" dominant-baseline="central" fill="${m.color || '#0a0a0a'}" font-family="${fontStack(font)}" font-weight="800" font-size="${fs}" letter-spacing="-0.04em">${escape(m.value || 'A')}</text>`;
+    }
+  }
+
+  return { svg: `<defs>${fillDefs}</defs>${body}`, width: sizeBox, height: sizeBox };
+}
+
+function renderStrokedShape(shape, s, color, sw) {
+  switch (shape) {
+    case 'circle':   return `<circle cx="${s/2}" cy="${s/2}" r="${s/2 - sw/2}" fill="none" stroke="${color}" stroke-width="${sw}"/>`;
+    case 'squircle': return `<rect x="${sw/2}" y="${sw/2}" width="${s-sw}" height="${s-sw}" rx="${(s-sw)*0.3}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    case 'rounded':  return `<rect x="${sw/2}" y="${sw/2}" width="${s-sw}" height="${s-sw}" rx="${(s-sw)*0.14}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    case 'square':   return `<rect x="${sw/2}" y="${sw/2}" width="${s-sw}" height="${s-sw}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    case 'hexagon': {
+      const cx=s/2, cy=s/2, r=s/2 - sw/2;
+      const pts=[];
+      for (let i=0;i<6;i++){ const a=(Math.PI/3)*i - Math.PI/2; pts.push(`${(cx+r*Math.cos(a)).toFixed(1)},${(cy+r*Math.sin(a)).toFixed(1)}`); }
+      return `<polygon points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    }
+  }
+  return '';
+}
+
+// ---------- Measure text width using offscreen canvas ----------
+const measureCtx = document.createElement('canvas').getContext('2d');
+function measureTextWidth(text, font, weight, size, italic = false, tracking = 0) {
+  measureCtx.font = `${italic?'italic ':''}${weight} ${size}px ${fontStack(font)}`;
+  let w = measureCtx.measureText(text).width;
+  if (tracking) w += tracking * size * Math.max(0, text.length - 1);
+  return w;
+}
+
+// ---------- Compose the full logo SVG ----------
+function buildLogo(opts = {}) {
+  _gradId = 0;
+  const s = opts.state || state;
+  const MARK_SIZE = 100;
+  const FONT_SIZE = 64;
+  const TAGLINE_SIZE = 18;
+  const TAGLINE_TRACKING_DEFAULT = 0.06;
+
+  const layout = s.layout || 'horizontal';
+  const hasMark = layout !== 'wordmark';
+  const hasText = layout !== 'mark-only';
+  const tagline = s.tagline ? transformText(s.tagline, s.text.case) : '';
+  const name = transformText(s.text.name || '', s.text.case);
+
+  let markBlock = '';
+  let markW = 0, markH = 0;
+  if (hasMark) {
+    const m = renderMarkSvg(s.mark, MARK_SIZE);
+    markBlock = m.svg;
+    markW = m.width; markH = m.height;
+  }
+
+  const f = s.text;
+  const textW = hasText ? measureTextWidth(name, f.font, f.weight, FONT_SIZE, f.italic, f.tracking) : 0;
+  const textH = FONT_SIZE * 1.05;
+  let tagW = 0, tagH = 0;
+  if (tagline) {
+    tagW = measureTextWidth(tagline, f.font, 500, TAGLINE_SIZE, false, TAGLINE_TRACKING_DEFAULT);
+    tagH = TAGLINE_SIZE * 1.4;
+  }
+
+  let W, H, layoutSvg = '';
+  const spacing = s.spacing != null ? s.spacing : 14;
+  const padding = 24;
+
+  if (layout === 'mark-only') {
+    W = MARK_SIZE + padding*2;
+    H = MARK_SIZE + padding*2;
+    layoutSvg = `<g transform="translate(${padding} ${padding})">${markBlock}</g>`;
+  }
+  else if (layout === 'wordmark') {
+    W = textW + padding*2;
+    H = textH + (tagline ? tagH + 8 : 0) + padding*2;
+    const textY = padding + FONT_SIZE * 0.82;
+    layoutSvg = `<text x="${padding}" y="${textY}" font-family="${fontStack(f.font)}" font-weight="${f.weight}" font-size="${FONT_SIZE}" letter-spacing="${f.tracking}em" ${f.italic?'font-style="italic"':''} fill="${f.color}">${escape(name)}</text>`;
+    if (tagline) {
+      layoutSvg += `<text x="${padding}" y="${textY + tagH}" font-family="${fontStack(f.font)}" font-weight="500" font-size="${TAGLINE_SIZE}" letter-spacing="${TAGLINE_TRACKING_DEFAULT}em" fill="${f.color}" opacity="0.6">${escape(tagline)}</text>`;
+    }
+  }
+  else if (layout === 'horizontal') {
+    W = padding + markW + spacing + textW + padding;
+    H = padding + Math.max(markH, textH + (tagline ? tagH + 6 : 0)) + padding;
+    const cy = H / 2;
+    layoutSvg = `<g transform="translate(${padding} ${cy - markH/2})">${markBlock}</g>`;
+    const textX = padding + markW + spacing;
+    if (tagline) {
+      const totalTextH = textH + 6 + tagH;
+      const textTop = cy - totalTextH/2 + FONT_SIZE * 0.82;
+      layoutSvg += `<text x="${textX}" y="${textTop}" font-family="${fontStack(f.font)}" font-weight="${f.weight}" font-size="${FONT_SIZE}" letter-spacing="${f.tracking}em" ${f.italic?'font-style="italic"':''} fill="${f.color}">${escape(name)}</text>`;
+      layoutSvg += `<text x="${textX}" y="${textTop + tagH}" font-family="${fontStack(f.font)}" font-weight="500" font-size="${TAGLINE_SIZE}" letter-spacing="${TAGLINE_TRACKING_DEFAULT}em" fill="${f.color}" opacity="0.6">${escape(tagline)}</text>`;
+    } else {
+      const textY = cy + FONT_SIZE * 0.32;
+      layoutSvg += `<text x="${textX}" y="${textY}" font-family="${fontStack(f.font)}" font-weight="${f.weight}" font-size="${FONT_SIZE}" letter-spacing="${f.tracking}em" ${f.italic?'font-style="italic"':''} fill="${f.color}">${escape(name)}</text>`;
+    }
+  }
+  else if (layout === 'vertical') {
+    W = padding*2 + Math.max(markW, textW, tagW);
+    const blockH = markH + spacing + textH + (tagline ? 6 + tagH : 0);
+    H = padding*2 + blockH;
+    const cx = W / 2;
+    layoutSvg = `<g transform="translate(${cx - markW/2} ${padding})">${markBlock}</g>`;
+    const textY = padding + markH + spacing + FONT_SIZE * 0.82;
+    layoutSvg += `<text x="${cx}" y="${textY}" text-anchor="middle" font-family="${fontStack(f.font)}" font-weight="${f.weight}" font-size="${FONT_SIZE}" letter-spacing="${f.tracking}em" ${f.italic?'font-style="italic"':''} fill="${f.color}">${escape(name)}</text>`;
+    if (tagline) {
+      layoutSvg += `<text x="${cx}" y="${textY + tagH}" text-anchor="middle" font-family="${fontStack(f.font)}" font-weight="500" font-size="${TAGLINE_SIZE}" letter-spacing="${TAGLINE_TRACKING_DEFAULT}em" fill="${f.color}" opacity="0.65">${escape(tagline)}</text>`;
+    }
+  }
+  else if (layout === 'badge') {
+    // Mark centered, text below in upper case wide tracking
+    const badgeFontSize = 22;
+    const badgeName = transformText(s.text.name || '', s.text.case || 'upper');
+    const nameW = measureTextWidth(badgeName, f.font, f.weight, badgeFontSize, false, f.tracking || 0.16);
+    const tagFontSize = 11;
+    const tagBadge = tagline ? transformText(tagline, 'upper') : '';
+    const tagBadgeW = tagBadge ? measureTextWidth(tagBadge, f.font, 500, tagFontSize, false, 0.16) : 0;
+    W = padding*2 + Math.max(markW, nameW, tagBadgeW);
+    const block = markH + 12 + badgeFontSize + (tagBadge ? 6 + tagFontSize : 0);
+    H = padding*2 + block;
+    const cx = W/2;
+    layoutSvg = `<g transform="translate(${cx - markW/2} ${padding})">${markBlock}</g>`;
+    const nameY = padding + markH + 12 + badgeFontSize * 0.82;
+    layoutSvg += `<text x="${cx}" y="${nameY}" text-anchor="middle" font-family="${fontStack(f.font)}" font-weight="${f.weight}" font-size="${badgeFontSize}" letter-spacing="0.16em" fill="${f.color}">${escape(badgeName)}</text>`;
+    if (tagBadge) {
+      layoutSvg += `<text x="${cx}" y="${nameY + 6 + tagFontSize}" text-anchor="middle" font-family="${fontStack(f.font)}" font-weight="500" font-size="${tagFontSize}" letter-spacing="0.16em" fill="${f.color}" opacity="0.6">${escape(tagBadge)}</text>`;
+    }
+  }
+
+  const bgFill = s.bg === 'dark' ? '#0a0a0a' : (s.bg === 'cream' ? '#FBF6E9' : '#ffffff');
+  const includeBg = opts.includeBg !== undefined ? opts.includeBg : (s.bg === 'dark' || s.bg === 'cream');
+  const bg = includeBg ? `<rect width="${W}" height="${H}" fill="${bgFill}"/>` : '';
+  return { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${bg}${layoutSvg}</svg>`, W, H };
+}
+
+// Build mark-only SVG (for favicons / contexts)
+function buildMarkOnly(opts = {}) {
+  const s = { ...state, layout: 'mark-only' };
+  return buildLogo({ state: s, ...opts });
+}
+
+function buildDarkVariant() {
+  const s = JSON.parse(JSON.stringify(state));
+  s.bg = 'dark';
+  s.text.color = '#ffffff';
+  // invert solid black marks to white
+  if (s.mark.mode === 'solid' && s.mark.color && s.mark.color.toLowerCase() === '#0a0a0a') {
+    s.mark.color = '#ffffff';
+    s.mark.textColor = '#0a0a0a';
+  }
+  return buildLogo({ state: s });
+}
+
+// ============================================================
+// SIDEBARS
+// ============================================================
+const LAYOUTS = ['horizontal','vertical','wordmark','mark-only','badge'];
+const SHAPES = ['none','circle','squircle','rounded','square','hexagon'];
+const MODES = [
+  { id: 'solid', name: 'Solid' },
+  { id: 'gradient', name: 'Gradient' },
+  { id: 'mesh', name: 'Mesh' },
+];
+const MARK_TYPES = [
+  { id: 'icon', name: 'Icon' },
+  { id: 'letter', name: 'Letter' },
+  { id: 'none', name: 'None' },
+];
+const CASES = ['as-is','lower','upper'];
+const BGS = ['light','cream','dark'];
+
+document.querySelector('.sidebar').innerHTML = `
+  ${meshy.brandHtml('Logo')}
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Library <span class="count">${LIBRARY.length}</span></div>
+      <div class="chips" id="catChips" style="margin-bottom:10px"></div>
+      <div class="lib-grid" id="libGrid"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Layout</div>
+      <div class="chips" id="layoutChips">
+        ${LAYOUTS.map(l => `<div class="chip" data-l="${l}">${l === 'mark-only' ? 'Mark' : l.charAt(0).toUpperCase()+l.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Mark shape</div>
+      <div class="chips" id="shapeChips">
+        ${SHAPES.map(s => `<div class="chip" data-s="${s}">${s === 'none' ? 'None' : s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Background</div>
+      <div class="chips" id="bgChips">
+        ${BGS.map(b => `<div class="chip" data-b="${b}">${b.charAt(0).toUpperCase()+b.slice(1)}</div>`).join('')}
+      </div>
+    </div>
+  </div>
+  ${meshy.hintHtml('Click any preset to load · then tweak away')}
+`;
+
+document.querySelector('.sidebar.right').innerHTML = `
+  <div class="brand"><div class="brand-name" style="font-size:18px">Editor</div></div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="sec-title">Brand name</div>
+      <input type="text" id="name" value="${state.text.name}" placeholder="Your brand">
+      <div class="row" style="margin-top:12px"><label>Tagline (optional)</label></div>
+      <input type="text" id="tagline" value="${state.tagline || ''}" placeholder="A short line">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Font</div>
+      <div class="font-chips" id="fontChips">
+        ${FONTS.map(f => `<div class="font-pick" data-f="${f.id}" style="font-family:${f.stack}">${f.name}</div>`).join('')}
+      </div>
+      <div class="row" style="margin-top:14px"><label>Weight</label><span class="val" id="weightVal">700</span></div>
+      <input type="range" id="weight" min="300" max="900" step="100" value="${state.text.weight}">
+      <div class="row" style="margin-top:14px"><label>Tracking</label><span class="val" id="trackingVal">-0.020em</span></div>
+      <input type="range" id="tracking" min="-60" max="200" value="${Math.round(state.text.tracking*1000)}">
+      <div class="row" style="margin-top:14px"><label>Case</label></div>
+      <div class="chips" id="caseChips">
+        ${CASES.map(c => `<div class="chip" data-c="${c}">${c === 'as-is' ? 'As-is' : c === 'lower' ? 'lower' : 'UPPER'}</div>`).join('')}
+      </div>
+      <div class="row" style="margin-top:14px"><label>Italic</label></div>
+      <div class="chips" id="italicChips">
+        <div class="chip" data-i="0">Roman</div>
+        <div class="chip" data-i="1">Italic</div>
+      </div>
+      <div class="row" style="margin-top:14px"><label>Text color</label></div>
+      <input type="color" id="textColor" value="${state.text.color}">
+    </div>
+    <div class="sec">
+      <div class="sec-title">Mark</div>
+      <div class="chips" id="markTypeChips">
+        ${MARK_TYPES.map(t => `<div class="chip" data-t="${t.id}">${t.name}</div>`).join('')}
+      </div>
+      <div id="letterRow" style="margin-top:10px;display:none">
+        <input type="text" id="letterVal" value="${state.mark.value || 'A'}" maxlength="2" style="font-family:'JetBrains Mono',monospace;text-align:center;font-size:18px;font-weight:600">
+      </div>
+      <div id="iconRow" style="margin-top:10px;display:none">
+        <div class="icon-grid" id="iconGrid"></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Mark color</div>
+      <div class="chips cmode-row" id="modeChips">
+        ${MODES.map(m => `<div class="chip" data-m="${m.id}">${m.name}</div>`).join('')}
+      </div>
+      <div id="solidRow" style="margin-top:10px">
+        <input type="color" id="markColor" value="${state.mark.color || '#0a0a0a'}">
+      </div>
+      <div id="gradient2Row" style="margin-top:10px;display:none">
+        <div class="row"><label>Second color</label></div>
+        <input type="color" id="markColor2" value="${state.mark.color2 || '#b48cff'}">
+      </div>
+      <div id="meshRow" style="margin-top:10px;display:none">
+        <div class="row"><label>Palette</label></div>
+        <div class="palette-grid" id="paletteGrid"></div>
+      </div>
+      <div class="row" style="margin-top:14px"><label>Outline only</label></div>
+      <div class="chips" id="strokeChips">
+        <div class="chip" data-so="0">Filled</div>
+        <div class="chip" data-so="1">Outline</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="row"><label>Spacing</label><span class="val" id="spacingVal">14</span></div>
+      <input type="range" id="spacing" min="4" max="40" value="${state.spacing || 14}">
+    </div>
+  </div>
+`;
+
+// ---------- Render context preview ----------
+function renderContext() {
+  const row = document.getElementById('contextRow');
+  const isDark = state.bg === 'dark';
+  const markSvg = buildMarkOnly({ includeBg: false }).svg;
+  const logo = buildLogo({ includeBg: false }).svg;
+
+  row.innerHTML = `
+    <div class="ctx ${isDark ? 'dark' : ''}">
+      <div class="ctx-label">Browser tab</div>
+      <div class="ctx-content">
+        <div class="ctx-favicon" style="width:100%">
+          ${markSvg.replace('<svg', '<svg style="width:18px;height:18px"')}
+          <div class="url-bar">${escape(state.text.name || 'meshy')}.com</div>
+        </div>
+      </div>
+    </div>
+    <div class="ctx ${isDark ? 'dark' : ''}">
+      <div class="ctx-label">Business card</div>
+      <div class="ctx-content"><div class="ctx-card" style="width:100%;height:100%">${logo}</div></div>
+    </div>
+    <div class="ctx">
+      <div class="ctx-label">iOS home</div>
+      <div class="ctx-content" style="padding:0">
+        <div class="ctx-mobile" style="width:100%">
+          <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+          <div class="app-icon-row">
+            <div class="app-icon"></div>
+            <div class="app-icon feature">${markSvg.replace('<svg', '<svg style="width:28px;height:28px;border-radius:6px"')}</div>
+            <div class="app-icon"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ctx">
+      <div class="ctx-label">T-shirt</div>
+      <div class="ctx-content"><div class="ctx-tshirt" style="width:100%;height:100%">${logo}</div></div>
+    </div>
+  `;
+}
+
+// ---------- Render main preview ----------
+function render() {
+  const stage = document.getElementById('logoStage');
+  stage.innerHTML = buildLogo().svg;
+  document.getElementById('canvas').classList.toggle('dark', state.bg === 'dark');
+  syncControls();
+  renderContext();
+}
+
+// ---------- Library tiles ----------
+function renderLibrary() {
+  const wrap = document.getElementById('libGrid');
+  const cat = state._catFilter || 'All';
+  const list = LIBRARY.filter(t => cat === 'All' || t.cat === cat);
+  wrap.innerHTML = '';
+  list.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'lib-tile' + (t.id === state.template ? ' active' : '');
+    el.title = `${t.name} · ${t.cat}`;
+    const tile = buildLogo({ state: { ...t, template: t.id }, includeBg: true }).svg;
+    el.innerHTML = tile;
+    el.addEventListener('click', () => loadTemplate(t.id));
+    wrap.appendChild(el);
+  });
+  // categories
+  const cats = ['All', ...Array.from(new Set(LIBRARY.map(t => t.cat)))];
+  const chips = document.getElementById('catChips');
+  chips.innerHTML = cats.map(c => `<div class="chip ${c === cat ? 'active' : ''}" data-cat="${c}" style="font-size:11px;padding:4px 9px">${c}</div>`).join('');
+}
+
+function loadTemplate(id) {
+  const t = LIBRARY.find(x => x.id === id);
+  if (!t) return;
+  Object.assign(state, JSON.parse(JSON.stringify(t)));
+  state.template = id;
+  render();
+  renderLibrary();
+  document.getElementById('name').value = state.text.name;
+  document.getElementById('tagline').value = state.tagline || '';
+  document.getElementById('textColor').value = state.text.color;
+  document.getElementById('markColor').value = state.mark.color || '#0a0a0a';
+  if (state.mark.color2) document.getElementById('markColor2').value = state.mark.color2;
+  document.getElementById('letterVal').value = state.mark.value || 'A';
+}
+
+// ---------- Sync controls from state ----------
+function syncControls() {
+  // active chips for various
+  function setActive(selector, attr, val) {
+    document.querySelectorAll(selector + ' .chip').forEach(c => c.classList.toggle('active', c.dataset[attr] === String(val)));
+  }
+  setActive('#layoutChips', 'l', state.layout);
+  setActive('#shapeChips', 's', state.mark.shape || 'none');
+  setActive('#bgChips', 'b', state.bg || 'light');
+  setActive('#markTypeChips', 't', state.mark.type);
+  setActive('#caseChips', 'c', state.text.case || 'as-is');
+  setActive('#italicChips', 'i', state.text.italic ? '1' : '0');
+  setActive('#modeChips', 'm', state.mark.mode || 'solid');
+  setActive('#strokeChips', 'so', state.mark.strokeOnly ? '1' : '0');
+  // font picks
+  document.querySelectorAll('#fontChips .font-pick').forEach(p => p.classList.toggle('active', p.dataset.f === state.text.font));
+  // ranges
+  document.getElementById('weight').value = state.text.weight;
+  document.getElementById('weightVal').textContent = state.text.weight;
+  document.getElementById('tracking').value = Math.round(state.text.tracking * 1000);
+  document.getElementById('trackingVal').textContent = state.text.tracking.toFixed(3) + 'em';
+  document.getElementById('spacing').value = state.spacing || 14;
+  document.getElementById('spacingVal').textContent = state.spacing || 14;
+  // letter/icon row visibility
+  document.getElementById('letterRow').style.display = state.mark.type === 'letter' ? 'block' : 'none';
+  document.getElementById('iconRow').style.display = state.mark.type === 'icon' ? 'block' : 'none';
+  // mode rows
+  document.getElementById('solidRow').style.display = state.mark.mode !== 'mesh' ? 'block' : 'none';
+  document.getElementById('gradient2Row').style.display = state.mark.mode === 'gradient' ? 'block' : 'none';
+  document.getElementById('meshRow').style.display = state.mark.mode === 'mesh' ? 'block' : 'none';
+}
+
+// ---------- Render palette grid & icon grid ----------
+function renderPaletteGrid() {
+  const wrap = document.getElementById('paletteGrid');
+  wrap.innerHTML = '';
+  PALETTE_LIST.forEach(name => {
+    const el = document.createElement('div');
+    el.className = 'palette-tile' + (state.mark.palette === name ? ' active' : '');
+    el.title = name;
+    const colors = PALETTES[name];
+    el.innerHTML = `<div class="strip">${colors.map(c => `<span style="background:${c}"></span>`).join('')}</div>`;
+    el.addEventListener('click', () => { state.mark.palette = name; render(); });
+    wrap.appendChild(el);
+  });
+}
+
+function renderIconGrid() {
+  const wrap = document.getElementById('iconGrid');
+  wrap.innerHTML = '';
+  ICON_LIST.forEach(name => {
+    const el = document.createElement('div');
+    el.className = 'icon-pick' + (state.mark.value === name ? ' active' : '');
+    el.title = name;
+    el.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="${ICONS[name]}"/></svg>`;
+    el.addEventListener('click', () => { state.mark.value = name; render(); });
+    wrap.appendChild(el);
+  });
+}
+
+// ---------- Wire up controls ----------
+document.getElementById('name').addEventListener('input', e => { state.text.name = e.target.value; render(); });
+document.getElementById('tagline').addEventListener('input', e => { state.tagline = e.target.value; render(); });
+document.getElementById('textColor').addEventListener('input', e => { state.text.color = e.target.value; render(); });
+document.getElementById('markColor').addEventListener('input', e => { state.mark.color = e.target.value; render(); });
+document.getElementById('markColor2').addEventListener('input', e => { state.mark.color2 = e.target.value; render(); });
+document.getElementById('letterVal').addEventListener('input', e => { state.mark.value = e.target.value.toUpperCase(); render(); });
+
+document.getElementById('weight').addEventListener('input', e => { state.text.weight = +e.target.value; document.getElementById('weightVal').textContent = state.text.weight; render(); });
+document.getElementById('tracking').addEventListener('input', e => { state.text.tracking = (+e.target.value)/1000; document.getElementById('trackingVal').textContent = state.text.tracking.toFixed(3)+'em'; render(); });
+document.getElementById('spacing').addEventListener('input', e => { state.spacing = +e.target.value; document.getElementById('spacingVal').textContent = state.spacing; render(); });
+
+['layoutChips','shapeChips','bgChips','markTypeChips','caseChips','italicChips','modeChips','strokeChips'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    const m = { layoutChips:'l', shapeChips:'s', bgChips:'b', markTypeChips:'t', caseChips:'c', italicChips:'i', modeChips:'m', strokeChips:'so' };
+    const k = m[id]; const v = c.dataset[k];
+    if (id === 'layoutChips') state.layout = v;
+    else if (id === 'shapeChips') state.mark.shape = v;
+    else if (id === 'bgChips') state.bg = v;
+    else if (id === 'markTypeChips') { state.mark.type = v; if (v === 'icon' && !state.mark.value) state.mark.value = 'star'; if (v === 'letter' && (state.mark.value && state.mark.value.length > 2)) state.mark.value = state.text.name[0]||'A'; }
+    else if (id === 'caseChips') state.text.case = v;
+    else if (id === 'italicChips') state.text.italic = v === '1';
+    else if (id === 'modeChips') state.mark.mode = v;
+    else if (id === 'strokeChips') state.mark.strokeOnly = v === '1';
+    render();
+  });
+});
+
+document.getElementById('fontChips').addEventListener('click', e => {
+  const p = e.target.closest('.font-pick'); if (!p) return;
+  state.text.font = p.dataset.f;
+  render();
+});
+
+document.body.addEventListener('click', e => {
+  const c = e.target.closest('#catChips .chip');
+  if (c) { state._catFilter = c.dataset.cat; renderLibrary(); }
+});
+
+// ---------- Random / Surprise ----------
+document.getElementById('randomBtn').addEventListener('click', () => {
+  loadTemplate(LIBRARY[Math.floor(Math.random()*LIBRARY.length)].id);
+});
+document.getElementById('surpriseBtn').addEventListener('click', () => {
+  // start from a random template, then remix several axes
+  const base = LIBRARY[Math.floor(Math.random()*LIBRARY.length)];
+  Object.assign(state, JSON.parse(JSON.stringify(base)));
+  state.template = '';
+  // shake font, palette, mode
+  state.text.font = meshy.pickOne(FONTS).id;
+  state.mark.mode = meshy.pickOne(['solid','solid','gradient','mesh']);
+  if (state.mark.mode === 'mesh') state.mark.palette = meshy.pickOne(PALETTE_LIST);
+  if (state.mark.mode === 'gradient') { state.mark.color = meshy.hslToHex(Math.random()*360, 70, 50); state.mark.color2 = meshy.hslToHex((Math.random()*360+120)%360, 70, 50); }
+  if (state.mark.mode === 'solid') state.mark.color = meshy.hslToHex(Math.random()*360, 60, 35);
+  state.mark.shape = meshy.pickOne(['none','circle','squircle','hexagon']);
+  state.mark.value = meshy.pickOne(ICON_LIST);
+  state.mark.type = meshy.chance(0.7) ? 'icon' : 'letter';
+  state.layout = meshy.pickOne(['horizontal','horizontal','vertical','badge']);
+  render(); renderLibrary();
+  document.getElementById('name').value = state.text.name;
+  document.getElementById('tagline').value = state.tagline || '';
+});
+
+// ---------- Export ----------
+document.getElementById('exportBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('exportDD').classList.toggle('open');
+});
+document.body.addEventListener('click', e => {
+  if (!e.target.closest('#exportDD')) document.getElementById('exportDD').classList.remove('open');
+});
+
+document.getElementById('svgBtn').addEventListener('click', () => {
+  download(buildLogo({ includeBg: true }).svg, `${slug(state.text.name)}.svg`, 'image/svg+xml');
+});
+
+document.getElementById('exportMenu').addEventListener('click', async e => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  document.getElementById('exportDD').classList.remove('open');
+  const kind = btn.dataset.export;
+  if (kind.startsWith('png-')) {
+    const size = parseInt(kind.split('-')[1]);
+    const built = buildLogo({ includeBg: true });
+    await svgToPng(built.svg, built.W, built.H, size, `${slug(state.text.name)}-${size}.png`);
+    meshy.toast(`PNG · ${size}px exported`);
+  } else if (kind === 'svg-light') {
+    download(buildLogo({ includeBg: true }).svg, `${slug(state.text.name)}-light.svg`, 'image/svg+xml');
+  } else if (kind === 'svg-dark') {
+    download(buildDarkVariant().svg, `${slug(state.text.name)}-dark.svg`, 'image/svg+xml');
+  } else if (kind === 'favicon') {
+    const built = buildMarkOnly({ includeBg: false });
+    for (const sz of [16, 32, 180, 512]) {
+      await svgToPng(built.svg, built.W, built.H, sz, `favicon-${sz}.png`);
+      await new Promise(r => setTimeout(r, 150));
+    }
+    meshy.toast('Favicon set exported');
+  } else if (kind === 'social') {
+    const built = buildLogo({ includeBg: true });
+    for (const [w, h, name] of [[1200, 630, 'og'], [1500, 500, 'x-header'], [2048, 2048, 'avatar']]) {
+      await svgToCanvasFit(built.svg, built.W, built.H, w, h, `${slug(state.text.name)}-${name}.png`);
+      await new Promise(r => setTimeout(r, 150));
+    }
+    meshy.toast('Social pack exported');
+  }
+});
+
+function slug(s) { return (s || 'logo').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+function download(content, name, type) {
+  const blob = new Blob([content], { type });
+  const link = document.createElement('a'); link.download = name; link.href = URL.createObjectURL(blob); link.click();
+}
+function svgToPng(svgStr, srcW, srcH, targetW, name) {
+  return new Promise((resolve) => {
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const scale = targetW / srcW;
+      const c = document.createElement('canvas');
+      c.width = targetW; c.height = Math.round(srcH * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      const link = document.createElement('a'); link.download = name; link.href = c.toDataURL('image/png'); link.click();
+      resolve();
+    };
+    img.src = url;
+  });
+}
+function svgToCanvasFit(svgStr, srcW, srcH, targetW, targetH, name) {
+  return new Promise((resolve) => {
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = targetW; c.height = targetH;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = state.bg === 'dark' ? '#0a0a0a' : (state.bg === 'cream' ? '#FBF6E9' : '#ffffff');
+      ctx.fillRect(0, 0, targetW, targetH);
+      const scale = Math.min(targetW / srcW, targetH / srcH) * 0.78;
+      const w = srcW * scale, h = srcH * scale;
+      const x = (targetW - w) / 2, y = (targetH - h) / 2;
+      ctx.drawImage(img, x, y, w, h);
+      URL.revokeObjectURL(url);
+      const link = document.createElement('a'); link.download = name; link.href = c.toDataURL('image/png'); link.click();
+      resolve();
+    };
+    img.src = url;
+  });
+}
+
+// ---------- Init ----------
+renderLibrary();
+renderPaletteGrid();
+renderIconGrid();
+render();
+</script>
+</body>
+</html>

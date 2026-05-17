@@ -1,6 +1,7 @@
 // meshy.fun — shared utilities (header is per-tool in sidebar)
 const TOOLS = [
   { slug: 'brand',       name: 'Brand Starter',     short: 'Brand',     desc: 'Type a name. Get a full brand kit: logomark, wordmark, palette, font pair.', cat: 'Brand' },
+  { slug: 'logo',        name: 'Logo Studio',       short: 'Logo',      desc: 'A serious logo generator. 24 pro templates, 5 layouts, 80 icons, full export pack.', cat: 'Brand' },
   { slug: 'logomark',    name: 'Logomark',          short: 'Logomark',  desc: 'Initial + shape + mesh gradient. Generative logomarks in seconds.', cat: 'Brand' },
   { slug: 'wordmark',    name: 'Wordmark',          short: 'Wordmark',  desc: 'Type a name, pick a treatment, get a polished SVG wordmark.', cat: 'Brand' },
   { slug: 'avatar',      name: 'Avatar Generator',  short: 'Avatar',    desc: 'Initials on a mesh-gradient circle. Beautiful avatars in one click.', cat: 'Brand' },
