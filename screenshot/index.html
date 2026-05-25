@@ -42,7 +42,7 @@
 <input type="file" id="bgFileInput" accept="image/*" style="display:none">
 
 <style>
-  #canvas { display:flex; align-items:center; justify-content:center; }
+  #canvas { display:flex; align-items:center; justify-content:center; flex:0 0 auto; margin:auto; min-height:0 !important; }
   #scene { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
   .overlay { position:absolute; inset:0; pointer-events:none; }
   .handle {
@@ -259,20 +259,33 @@ function setAspect(asp, keep) {
   const LONG = 1600;
   if (aw >= ah) { VW = LONG; VH = Math.round(LONG*ah/aw); }
   else { VH = LONG; VW = Math.round(LONG*ah/aw === 0 ? LONG : LONG*aw/ah); }
-  document.getElementById('canvas').style.aspectRatio = asp;
   resizeScene();
   if (!keep) commit();
 }
 
 const scene = document.getElementById('scene');
 const sctx = scene.getContext('2d');
+const canvasEl = document.getElementById('canvas');
 let bpv = 1;   // backing pixels per virtual unit
 function resizeScene() {
-  const rect = scene.getBoundingClientRect();
-  if (!rect.width) return;
-  const dpr = Math.min(window.devicePixelRatio||1, 2);
-  scene.width = Math.round(rect.width*dpr);
-  scene.height = Math.round(rect.height*dpr);
+  const wrap = canvasEl.parentElement;          // .canvas-wrap
+  const toolbar = wrap.querySelector('.toolbar');
+  const cs = getComputedStyle(wrap);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const gap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 16;
+  const availW = wrap.clientWidth - padX;
+  const availH = wrap.clientHeight - padY - (toolbar ? toolbar.offsetHeight : 0) - gap;
+  if (availW <= 0 || availH <= 0) return;
+  const [aw, ah] = state.aspect.split('/').map(Number);
+  let w = availW, h = w * ah / aw;              // fit to width, then clamp to height
+  if (h > availH) { h = availH; w = h * aw / ah; }
+  w = Math.max(50, Math.floor(w)); h = Math.max(50, Math.floor(h));
+  canvasEl.style.width = w + 'px';
+  canvasEl.style.height = h + 'px';
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  scene.width = Math.round(w * dpr);
+  scene.height = Math.round(h * dpr);
   bpv = scene.width / VW;
   render();
 }
@@ -1416,7 +1429,7 @@ let nudgeTimer;
 function endNudge(){ clearTimeout(nudgeTimer); nudgeTimer=setTimeout(commit,400); }
 
 window.addEventListener('resize', resizeScene);
-new ResizeObserver(resizeScene).observe(document.getElementById('canvas'));
+new ResizeObserver(resizeScene).observe(canvasEl.parentElement);
 
 //======================================================================
 // Init
