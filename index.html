@@ -74,6 +74,32 @@
   .m-card .thumb-brand .b-pal { background: linear-gradient(90deg, #667EEA 0 20%, #764BA2 20% 40%, #F093FB 40% 60%, #F5576C 60% 80%, #4FACFE 80%); }
   .m-card .thumb-brand .b-words { background: #0a0a0a; color: #fff; display: flex; align-items: center; justify-content: center; font-family: Inter, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
 
+  /* ---------- Featured tools ---------- */
+  .featured-section { margin-top: 8px; }
+  .featured-head { margin: 8px 0 18px; }
+  .featured-eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.16em;
+    color: var(--ink-3); font-weight: 600; margin-bottom: 6px;
+  }
+  .featured-spark {
+    background: linear-gradient(120deg, #ff7a59, #b48cff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-size: 12px;
+  }
+  .featured-head h2 {
+    font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400;
+    font-size: 30px; line-height: 1.1; margin: 0; letter-spacing: -0.01em;
+  }
+  .featured-card {
+    border: 1px solid transparent;
+    background-color: transparent;
+    background-image: linear-gradient(#fff, #fff), linear-gradient(120deg, #ff7a59, #b48cff 55%, #6ba6ff);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+  .featured-card:hover { border-color: transparent; }
+
   /* ---------- Newsletter signup ---------- */
   .newsletter {
     max-width: 480px;
@@ -229,6 +255,14 @@
     </form>
   </section>
 
+  <section class="featured-section" id="featured">
+    <div class="featured-head">
+      <span class="featured-eyebrow"><span class="featured-spark">✦</span> Featured</span>
+      <h2>Start with our most-loved tools</h2>
+    </div>
+    <div class="cards" id="featuredCards"></div>
+  </section>
+
   <div id="tools">
     <div id="toolsByCategory"></div>
   </div>
@@ -244,8 +278,43 @@
 document.getElementById('year').textContent = new Date().getFullYear();
 
 const CATS = ['Brand', 'Generators', 'Hand Drawn', 'Image FX', 'Color', 'Typography', 'Asset'];
+const FEATURED = ['mesh', 'screenshot', 'stripe-notif', 'mrr-chart', 'ascii'];
 const root = document.getElementById('toolsByCategory');
 
+function makeCard(t, featured) {
+  const a = document.createElement('a');
+  a.href = `/${t.slug}/`;
+  a.className = 'card m-card' + (featured ? ' featured-card' : '');
+  const blobSvg = t.slug === 'blob' ? `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path fill="#0a0a0a" d="M44.7,-58.7C58.3,-50.4,69.8,-37.1,75.8,-21.5C81.7,-5.9,82.2,12,75.4,26.5C68.5,41.1,54.4,52.4,38.8,60.2C23.2,68,6.2,72.3,-11.4,71.4C-29.1,70.5,-47.4,64.3,-58.8,52.1C-70.2,39.9,-74.6,21.6,-74.4,3.5C-74.1,-14.7,-69.1,-32.8,-58.4,-44.4C-47.6,-56.1,-31,-61.3,-15.3,-62.6C0.4,-63.9,15.2,-61.3,29.1,-66.8C43,-72.2,55.9,-85.7,44.7,-58.7Z" transform="translate(100 100)"/></svg>` : '';
+  const typeContent = t.slug === 'type-scale' ? '<span style="font-size:38px">Aa</span><span style="font-size:22px">Aa</span><span style="font-size:14px">Aa</span>' : '';
+  const fontsContent = t.slug === 'fonts' ? '<span style="font-family:Instrument Serif,serif;font-size:24px;font-style:italic">Headline</span><span style="font-family:Inter,sans-serif;font-size:11px;color:#525252">Body text in a different face</span>' : '';
+  const favContent = t.slug === 'favicon' ? '<span style="width:46px;height:46px"></span><span style="width:30px;height:30px"></span><span style="width:18px;height:18px"></span>' : '';
+  const svgContent = t.slug === 'svg' ? '&lt;svg viewBox="0 0 24 24"&gt;\n  &lt;path d="M3 12l5 5L21 4"/&gt;\n&lt;/svg&gt;' : '';
+  const colorNameContent = t.slug === 'color-name' ? 'Cornflower' : '';
+  const contrastContent = t.slug === 'contrast' ? 'Aa' : '';
+  const avatarContent = t.slug === 'avatar' ? '<span style="width:48px;height:48px;font-size:18px">M</span><span style="width:36px;height:36px;font-size:13px">JR</span><span style="width:24px;height:24px;font-size:9px">A</span>' : '';
+  const wordmarkContent = t.slug === 'wordmark' ? 'meshy' : '';
+  const logomarkContent = t.slug === 'logomark' ? '<span>M</span>' : '';
+  const brandContent = t.slug === 'brand' ? '<div class="b-mark"></div><div class="b-type">Aa</div><div class="b-words">MESHY</div><div class="b-pal"></div>' : '';
+  const asciiContent = t.slug === 'ascii' ? `   :-=+**+=-:   \n  -+*##%%##*+-  \n -*##%%@%%##*- \n -*##%@@%##*-  \n  -+*##%##*+-  \n   :-=++=-:   ` : '';
+  const chartsContent = t.slug === 'charts' ? '<span style="height:35%"></span><span style="height:60%"></span><span style="height:45%"></span><span style="height:80%"></span><span style="height:55%"></span><span style="height:90%"></span>' : '';
+  const mrrContent = t.slug === 'mrr-chart' ? '<span style="height:20%"></span><span style="height:30%"></span><span style="height:40%"></span><span style="height:50%"></span><span style="height:70%"></span><span style="height:95%"></span>' : '';
+  a.innerHTML = `
+    <div class="thumb thumb-${t.slug}">${blobSvg}${typeContent}${fontsContent}${favContent}${svgContent}${colorNameContent}${contrastContent}${avatarContent}${wordmarkContent}${logomarkContent}${brandContent}${asciiContent}${chartsContent}${mrrContent}</div>
+    <h3>${t.name}</h3>
+    <p class="desc">${t.desc}</p>
+  `;
+  return a;
+}
+
+// Featured tools — pinned to the top
+const featuredGrid = document.getElementById('featuredCards');
+FEATURED.forEach(slug => {
+  const t = meshy.TOOLS.find(x => x.slug === slug);
+  if (t) featuredGrid.appendChild(makeCard(t, true));
+});
+
+// All tools, grouped by category
 CATS.forEach(cat => {
   const tools = meshy.TOOLS.filter(t => t.cat === cat);
   if (!tools.length) return;
@@ -253,31 +322,7 @@ CATS.forEach(cat => {
   sec.innerHTML = `<h2 class="cat-title">${cat}</h2><div class="cards"></div>`;
   root.appendChild(sec);
   const grid = sec.querySelector('.cards');
-  tools.forEach(t => {
-    const a = document.createElement('a');
-    a.href = `/${t.slug}/`;
-    a.className = 'card m-card';
-    const blobSvg = t.slug === 'blob' ? `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path fill="#0a0a0a" d="M44.7,-58.7C58.3,-50.4,69.8,-37.1,75.8,-21.5C81.7,-5.9,82.2,12,75.4,26.5C68.5,41.1,54.4,52.4,38.8,60.2C23.2,68,6.2,72.3,-11.4,71.4C-29.1,70.5,-47.4,64.3,-58.8,52.1C-70.2,39.9,-74.6,21.6,-74.4,3.5C-74.1,-14.7,-69.1,-32.8,-58.4,-44.4C-47.6,-56.1,-31,-61.3,-15.3,-62.6C0.4,-63.9,15.2,-61.3,29.1,-66.8C43,-72.2,55.9,-85.7,44.7,-58.7Z" transform="translate(100 100)"/></svg>` : '';
-    const typeContent = t.slug === 'type-scale' ? '<span style="font-size:38px">Aa</span><span style="font-size:22px">Aa</span><span style="font-size:14px">Aa</span>' : '';
-    const fontsContent = t.slug === 'fonts' ? '<span style="font-family:Instrument Serif,serif;font-size:24px;font-style:italic">Headline</span><span style="font-family:Inter,sans-serif;font-size:11px;color:#525252">Body text in a different face</span>' : '';
-    const favContent = t.slug === 'favicon' ? '<span style="width:46px;height:46px"></span><span style="width:30px;height:30px"></span><span style="width:18px;height:18px"></span>' : '';
-    const svgContent = t.slug === 'svg' ? '&lt;svg viewBox="0 0 24 24"&gt;\n  &lt;path d="M3 12l5 5L21 4"/&gt;\n&lt;/svg&gt;' : '';
-    const colorNameContent = t.slug === 'color-name' ? 'Cornflower' : '';
-    const contrastContent = t.slug === 'contrast' ? 'Aa' : '';
-    const avatarContent = t.slug === 'avatar' ? '<span style="width:48px;height:48px;font-size:18px">M</span><span style="width:36px;height:36px;font-size:13px">JR</span><span style="width:24px;height:24px;font-size:9px">A</span>' : '';
-    const wordmarkContent = t.slug === 'wordmark' ? 'meshy' : '';
-    const logomarkContent = t.slug === 'logomark' ? '<span>M</span>' : '';
-    const brandContent = t.slug === 'brand' ? '<div class="b-mark"></div><div class="b-type">Aa</div><div class="b-words">MESHY</div><div class="b-pal"></div>' : '';
-    const asciiContent = t.slug === 'ascii' ? `   :-=+**+=-:   \n  -+*##%%##*+-  \n -*##%%@%%##*- \n -*##%@@%##*-  \n  -+*##%##*+-  \n   :-=++=-:   ` : '';
-    const chartsContent = t.slug === 'charts' ? '<span style="height:35%"></span><span style="height:60%"></span><span style="height:45%"></span><span style="height:80%"></span><span style="height:55%"></span><span style="height:90%"></span>' : '';
-    const mrrContent = t.slug === 'mrr-chart' ? '<span style="height:20%"></span><span style="height:30%"></span><span style="height:40%"></span><span style="height:50%"></span><span style="height:70%"></span><span style="height:95%"></span>' : '';
-    a.innerHTML = `
-      <div class="thumb thumb-${t.slug}">${blobSvg}${typeContent}${fontsContent}${favContent}${svgContent}${colorNameContent}${contrastContent}${avatarContent}${wordmarkContent}${logomarkContent}${brandContent}${asciiContent}${chartsContent}${mrrContent}</div>
-      <h3>${t.name} ${t.slug === 'mesh' ? '<span class="badge new">Featured</span>' : ''}</h3>
-      <p class="desc">${t.desc}</p>
-    `;
-    grid.appendChild(a);
-  });
+  tools.forEach(t => grid.appendChild(makeCard(t, false)));
 });
 
 // ---------- Newsletter signup ----------
